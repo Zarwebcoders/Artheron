@@ -1,258 +1,199 @@
-import React, { useEffect, useRef, useState } from 'react';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
-import ScrollProgressBar from '../components/ScrollProgressBar';
+import React, { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import gsap from 'gsap';
+import { useAuth } from '../context/AuthContext';
+import { 
+    ArrowUpRight, 
+    ArrowDownRight, 
+    Clock, 
+    Activity, 
+    Wallet, 
+    TrendingUp, 
+    Coins, 
+    Lock, 
+    BarChart3,
+    ArrowRight
+} from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
 import { useWallet } from '../context/WalletContext';
-import { ArrowUpRight, ArrowDownRight, Clock, ShieldCheck, Activity, Wallet, TrendingUp } from 'lucide-react';
 
 const Dashboard = () => {
-    const { account, balance } = useWallet();
-    const containerRef = useRef(null);
-
-    // State-based counters for maximum stability
-    const [displayStats, setDisplayStats] = useState({
-        balance: 0,
-        staked: 0,
-        rewards: 0
+    const { balances, user } = useAuth();
+    const { balance } = useWallet();
+    
+    // Smooth counter state
+    const [counts, setCounts] = useState({
+        token: 0,
+        stake: 0,
+        income: 0,
+        locked: 0
     });
 
-    const transactions = [
-        { id: '1', type: 'Receive', amount: '+12,500 ARTH', date: '2 hours ago', status: 'Completed', hash: '0xabc...def' },
-        { id: '2', type: 'Stake', amount: '-5,000 ARTH', date: 'Yesterday', status: 'Completed', hash: '0x123...456' },
-        { id: '3', type: 'Claim', amount: '+250 ARTH', date: '3 days ago', status: 'Completed', hash: '0x789...012' },
+    const chartData = [
+        { name: 'Mon', income: 45 },
+        { name: 'Tue', income: 52 },
+        { name: 'Wed', income: 48 },
+        { name: 'Thu', income: 61 },
+        { name: 'Fri', income: 55 },
+        { name: 'Sat', income: 67 },
+        { name: 'Sun', income: 72 },
     ];
 
     useEffect(() => {
-        if (!account || !containerRef.current) return;
+        const statsObj = { token: 0, stake: 0, income: 0, locked: 0 };
+        
+        gsap.to(statsObj, {
+            token: parseFloat(balance) || 0,
+            stake: balances.stakeBalance,
+            income: balances.incomeBalance,
+            locked: balances.lockedBalance,
+            duration: 1.5,
+            ease: "power2.out",
+            onUpdate: () => setCounts({ ...statsObj })
+        });
 
-        let ctx = gsap.context(() => {
-            // 1. Creative Staggered Entry
-            gsap.fromTo(".dash-card",
-                { y: 50, opacity: 0, scale: 0.95, rotationX: -10 },
-                {
-                    y: 0, opacity: 1, scale: 1, rotationX: 0,
-                    stagger: 0.15, duration: 1, ease: "back.out(1.2)"
-                }
-            );
-
-            // 2. Number Counter Animation using State
-            const targetBalance = parseFloat(balance.replace(/,/g, '')) || 0;
-            const statsObj = { balance: 0, staked: 0, rewards: 0 };
-
-            gsap.to(statsObj, {
-                balance: targetBalance,
-                staked: 5000,
-                rewards: 250,
-                duration: 2,
-                ease: "power2.out",
-                onUpdate: function () {
-                    setDisplayStats({
-                        balance: statsObj.balance,
-                        staked: statsObj.staked,
-                        rewards: statsObj.rewards
-                    });
-                }
-            });
-
-            // 3. 3D Hover Tilt Effect
-            const cards = gsap.utils.toArray('.dash-card');
-            cards.forEach(card => {
-                const cardInner = card.querySelector('.card-inner-glow');
-
-                card.addEventListener("mousemove", (e) => {
-                    const rect = card.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    const centerX = rect.width / 2;
-                    const centerY = rect.height / 2;
-
-                    const rotateX = ((y - centerY) / centerY) * -10;
-                    const rotateY = ((x - centerX) / centerX) * 10;
-
-                    gsap.to(card, {
-                        rotateX: rotateX,
-                        rotateY: rotateY,
-                        transformPerspective: 1000,
-                        ease: "power2.out",
-                        duration: 0.5
-                    });
-
-                    if (cardInner) {
-                        gsap.to(cardInner, {
-                            x: (x - centerX) * 0.2,
-                            y: (y - centerY) * 0.2,
-                            opacity: 0.3,
-                            duration: 0.5,
-                            ease: "power2.out"
-                        });
-                    }
-                });
-
-                card.addEventListener("mouseleave", () => {
-                    gsap.to(card, {
-                        rotateX: 0,
-                        rotateY: 0,
-                        ease: "elastic.out(1, 0.3)",
-                        duration: 1.2
-                    });
-                    if (cardInner) {
-                        gsap.to(cardInner, {
-                            x: 0, y: 0, opacity: 0.1, duration: 0.8, ease: "power2.out"
-                        });
-                    }
-                });
-            });
-
-        }, containerRef);
-
-        return () => ctx.revert();
-    }, [account, balance]);
-
-    if (!account) {
-        return (
-            <div className="relative w-full min-h-screen bg-[#07010f] text-white flex flex-col justify-between overflow-hidden">
-                <ScrollProgressBar />
-                <Navbar />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#7b3fe4] rounded-full mix-blend-screen filter blur-[200px] opacity-[0.05] pointer-events-none"></div>
-                <main className="flex-grow flex items-center justify-center relative z-10 px-4 pt-32 pb-12">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="text-center glass-panel p-12 rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(123,63,228,0.1)] relative overflow-hidden max-w-lg w-full"
-                    >
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#22d3ee] rounded-full mix-blend-screen filter blur-[60px] opacity-10"></div>
-                        <div className="w-20 h-20 mx-auto rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-8 relative glow-purple">
-                            <ShieldCheck size={36} className="text-[#a855f7]" />
-                        </div>
-                        <h2 className="text-3xl font-bold font-heading mb-4 text-white">Dashboard Locked</h2>
-                        <p className="text-gray-400 mb-8 leading-relaxed font-light">Please connect your Web3 wallet to access your personal Artheron dashboard, manage holdings, and view transaction history.</p>
-                    </motion.div>
-                </main>
-                <Footer />
-            </div>
+        gsap.fromTo(".dash-card", 
+            { y: 20, opacity: 0 },
+            { y: 0, opacity: 1, stagger: 0.1, duration: 0.8, ease: "power2.out" }
         );
-    }
+    }, [balances]);
+
+    const stats = [
+        { label: 'Token Balance', value: counts.token, color: '#22d3ee', icon: <Coins size={20} />, sub: 'Available ARTH' },
+        { label: 'Active Stake', value: counts.stake, color: '#a855f7', icon: <Lock size={20} />, sub: 'Staked ARTH' },
+        { label: 'Income Balance', value: counts.income, color: '#22C55E', icon: <TrendingUp size={20} />, sub: 'Earned Profit' },
+        { label: 'Locked Assets', value: counts.locked, color: '#F43F5E', icon: <Activity size={20} />, sub: 'Maturity Pending' }
+    ];
 
     return (
-        <div className="relative w-full min-h-screen bg-[#07010f] text-white flex flex-col overflow-hidden">
-            <ScrollProgressBar />
-            <Navbar />
+        <div className="p-6 lg:p-10 space-y-10">
+            {/* Header / Welcome */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-4">
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+                    <h1 className="text-3xl font-bold font-heading mb-1 uppercase tracking-tight">
+                        PROTOCOL <span className="text-gradient">CONSOLE</span>
+                    </h1>
+                    <p className="text-xs text-gray-500 font-mono tracking-widest bg-white/5 py-1 px-3 rounded-full border border-white/5 inline-block capitalize">
+                        Welcome back, {user?.email?.split('@')[0] || 'Operator'}
+                    </p>
+                </motion.div>
 
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#22d3ee] rounded-full mix-blend-screen filter blur-[250px] opacity-[0.04] pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#7b3fe4] rounded-full mix-blend-screen filter blur-[250px] opacity-[0.04] pointer-events-none"></div>
+                <div className="flex gap-3">
+                    <button className="bg-[#7b3fe4]/10 border border-[#7b3fe4]/20 text-[#a855f7] px-5 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all hover:bg-[#7b3fe4]/20 hover:scale-105 active:scale-95 flex items-center gap-2">
+                         <BarChart3 size={16} /> Analytics
+                    </button>
+                </div>
+            </div>
 
-            <main ref={containerRef} className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full mt-32 mb-20 relative z-10">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-4">
-                    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-                        <h1 className="text-4xl md:text-5xl font-bold font-heading mb-3">My <span className="text-gradient">Portfolio</span></h1>
-                        <div className="flex items-center gap-3">
-                            <span className="w-2 h-2 rounded-full bg-[#22d3ee] glow-blue animate-pulse"></span>
-                            <p className="text-gray-400 font-mono text-sm tracking-wider bg-white/5 px-3 py-1 rounded-full border border-white/5">{account}</p>
+            {/* Main Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                {stats.map((stat, i) => (
+                    <div key={i} className="dash-card glass-panel p-6 rounded-[2rem] border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors bg-[#0A0319]/50">
+                        <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full mix-blend-screen filter blur-[60px] opacity-10 transition-opacity duration-500 group-hover:opacity-20" style={{ backgroundColor: stat.color }}></div>
+                        
+                        <div className="relative z-10 flex flex-col justify-between h-full">
+                            <div className="flex justify-between items-start mb-6">
+                                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/5 group-hover:border-white/10 transition-colors" style={{ color: stat.color }}>
+                                    {stat.icon}
+                                </div>
+                                <span className={`text-[10px] font-bold uppercase tracking-widest py-1 px-2 rounded-lg bg-white/5 border border-white/5`} style={{ color: stat.color }}>+12.5%</span>
+                            </div>
+                            
+                            <div>
+                                <p className="text-gray-500 text-[10px] font-bold uppercase tracking-[0.2em] mb-1">{stat.label}</p>
+                                <h3 className="text-3xl font-bold font-mono tracking-tighter text-white">
+                                    {Math.floor(stat.value).toLocaleString()}
+                                    <span className="text-sm text-gray-600 font-light ml-2">ARTH</span>
+                                </h3>
+                                <p className="text-[10px] text-gray-700 font-mono mt-1 uppercase tracking-wider">{stat.sub}</p>
+                            </div>
                         </div>
-                    </motion.div>
+                    </div>
+                ))}
+            </div>
 
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex gap-3">
-                        <button className="bg-white/5 hover:bg-white/10 border border-white/10 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center gap-2">
-                            <Wallet size={16} /> Deposit
-                        </button>
-                        <button className="bg-gradient-to-r from-[#7b3fe4] to-[#a855f7] hover:from-[#a855f7] hover:to-[#22d3ee] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:scale-105 active:scale-95 duration-200">
-                            Buy ARTH
-                        </button>
-                    </motion.div>
+            {/* Analytics & Activity Grid */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                {/* Income Analytics */}
+                <div className="dash-card xl:col-span-2 glass-panel p-8 rounded-[2.5rem] border border-white/5 bg-[#0A0319]/50 relative overflow-hidden">
+                    <div className="flex justify-between items-center mb-10">
+                        <div>
+                            <h3 className="text-xl font-bold font-heading uppercase tracking-tight">Earnings <span className="text-[#22C55E]">Projection</span></h3>
+                            <p className="text-[10px] text-gray-500 font-mono uppercase tracking-[0.2em]">Weekly ROI Yield Analysis</p>
+                        </div>
+                        <div className="flex gap-2">
+                             <div className="text-right">
+                                 <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total Yield</p>
+                                 <p className="text-sm font-bold font-mono text-white text-gradient">+$1,452.80</p>
+                             </div>
+                        </div>
+                    </div>
+
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={chartData}>
+                                <defs>
+                                    <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#7b3fe4" stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor="#7b3fe4" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff05" />
+                                <XAxis 
+                                    dataKey="name" 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{ fill: '#4b5563', fontSize: 10, fontWeight: 'bold' }} 
+                                />
+                                <YAxis 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{ fill: '#4b5563', fontSize: 10, fontWeight: 'bold' }} 
+                                />
+                                <Tooltip 
+                                    contentStyle={{ backgroundColor: '#0A0319', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '10px' }}
+                                    itemStyle={{ color: '#fff' }}
+                                />
+                                <Area type="monotone" dataKey="income" stroke="#7b3fe4" strokeWidth={3} fillOpacity={1} fill="url(#colorIncome)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                    <div className="dash-card glass-panel p-8 rounded-[2rem] border border-[#22d3ee]/20 relative overflow-hidden group hover:border-[#22d3ee]/40 transition-[border-color] duration-300">
-                        <div className="card-inner-glow absolute -top-10 -right-10 w-40 h-40 bg-[#22d3ee] rounded-full mix-blend-screen filter blur-[70px] opacity-[0.15]"></div>
-                        <div className="relative z-10">
-                            <div className="flex justify-between items-start mb-4">
-                                <p className="text-gray-400 text-sm font-medium">Available Balance</p>
-                                <div className="w-8 h-8 rounded-full bg-[#22d3ee]/10 flex items-center justify-center text-[#22d3ee]">
-                                    <Wallet size={16} />
-                                </div>
-                            </div>
-                            <h3 className="text-4xl font-bold font-mono tracking-tight text-white mb-2">{Math.ceil(displayStats.balance).toLocaleString()} <span className="text-2xl text-gray-400 font-light">ARTH</span></h3>
-                            <p className="text-sm text-[#22d3ee] font-mono tracking-wide">~ ${(displayStats.balance * 0.0452).toFixed(2)} USD</p>
-                        </div>
+                {/* Quick Stake / SOS Section */}
+                <div className="flex flex-col gap-6">
+                    <div className="dash-card glass-panel p-8 rounded-[2.5rem] border border-[#a855f7]/20 bg-gradient-to-br from-[#12052b] to-[#0A0319] relative overflow-hidden group">
+                         <div className="absolute top-0 right-0 w-32 h-32 bg-[#a855f7] rounded-full mix-blend-screen filter blur-[80px] opacity-[0.1] group-hover:opacity-[0.2] transition-opacity"></div>
+                         
+                         <div className="relative z-10 flex flex-col h-full">
+                             <div className="w-14 h-14 rounded-2xl bg-[#a855f7]/10 flex items-center justify-center text-[#a855f7] mb-6 border border-[#a855f7]/20 glow-purple">
+                                 <TrendingUp size={28} />
+                             </div>
+                             <h3 className="text-2xl font-bold font-heading mb-2 uppercase tracking-tighter">Fixed <span className="text-[#a855f7]">ROI Protocol</span></h3>
+                             <p className="text-xs text-gray-400 mb-8 leading-relaxed font-light">Earn stable <span className="text-white font-bold">6% monthly yield</span> on your ARTH holdings with Artheron PRO smart engine.</p>
+                             
+                             <button className="mt-auto w-full py-4 rounded-2xl bg-white text-black font-bold uppercase tracking-widest text-[10px] shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_50px_rgba(255,255,255,0.4)] transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 group">
+                                 <span>Activate Staking</span>
+                                 <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                             </button>
+                         </div>
                     </div>
 
-                    <div className="dash-card glass-panel p-8 rounded-[2rem] border border-white/5 relative overflow-hidden hover:border-[#a855f7]/30 transition-[border-color] duration-300 group">
-                        <div className="card-inner-glow absolute -bottom-10 -right-10 w-40 h-40 bg-[#a855f7] rounded-full mix-blend-screen filter blur-[70px] opacity-[0.15]"></div>
-                        <div className="relative z-10">
-                            <div className="flex justify-between items-start mb-4">
-                                <p className="text-gray-400 text-sm font-medium">Total Staked</p>
-                                <div className="w-8 h-8 rounded-full bg-[#a855f7]/10 flex items-center justify-center text-[#a855f7]">
-                                    <TrendingUp size={16} />
-                                </div>
-                            </div>
-                            <h3 className="text-4xl font-bold font-mono tracking-tight text-white mb-2">{Math.ceil(displayStats.staked).toLocaleString()} <span className="text-2xl text-gray-400 font-light">ARTH</span></h3>
-                            <div className="inline-flex items-center gap-2 bg-[#a855f7]/10 px-3 py-1 rounded-md border border-[#a855f7]/20 mt-1">
-                                <span className="w-2 h-2 rounded-full bg-[#a855f7] animate-pulse"></span>
-                                <p className="text-xs text-[#a855f7] font-bold tracking-wider">EARNING 12% APY</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="dash-card glass-panel p-8 rounded-[2rem] border border-white/5 relative overflow-hidden group flex flex-col justify-between transition-[border-color] duration-300 hover:border-white/20">
-                        <div className="card-inner-glow absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-[#7b3fe4] rounded-full mix-blend-screen filter blur-[70px] opacity-[0.15]"></div>
-                        <div className="relative z-10">
-                            <p className="text-gray-400 text-sm font-medium mb-4">Total Rewards Earned</p>
-                            <h3 className="text-4xl font-bold font-mono tracking-tight text-white mb-2">{Math.ceil(displayStats.rewards).toLocaleString()} <span className="text-2xl text-gray-400 font-light">ARTH</span></h3>
-                        </div>
-                        <div className="relative z-10 mt-6 pt-6 border-t border-white/5">
-                            <button className="w-full relative px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl font-bold transition-all text-sm border border-white/10 overflow-hidden group/btn text-white text-center hover:scale-105 active:scale-95 duration-200">
-                                <span className="relative z-10">Claim Rewards</span>
-                                <div className="absolute inset-0 bg-gradient-to-r from-[#22d3ee]/20 to-[#a855f7]/20 opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
-                            </button>
-                        </div>
+                    <div className="dash-card glass-panel p-6 rounded-3xl border border-white/5 bg-white/[0.02] flex items-center justify-between">
+                         <div className="flex items-center gap-4">
+                             <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500 border border-red-500/20">
+                                 <Activity size={20} />
+                             </div>
+                             <div>
+                                 <p className="text-xs font-bold text-white uppercase tracking-tight">SOS Emergency</p>
+                                 <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">20% Penalty Apply</p>
+                             </div>
+                         </div>
+                         <button className="text-[10px] font-bold text-red-500 uppercase tracking-widest hover:underline px-4 py-2 bg-red-500/5 rounded-lg border border-red-500/10">Withdraw</button>
                     </div>
                 </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="dash-card lg:col-span-2 glass-panel rounded-[2rem] border border-white/5 p-8 relative overflow-hidden bg-white/[0.01]">
-                        <div className="card-inner-glow absolute top-0 -left-20 w-64 h-64 bg-[#22d3ee] rounded-full mix-blend-screen filter blur-[100px] opacity-[0.05] pointer-events-none"></div>
-                        <div className="flex justify-between items-center mb-8 relative z-10">
-                            <h3 className="text-2xl font-bold font-heading">Recent <span className="text-gradient">Activity</span></h3>
-                            <button className="text-xs font-medium text-[#22d3ee] hover:text-[#a855f7] uppercase tracking-wider transition-colors flex items-center gap-1 group">
-                                View Explorer <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                            </button>
-                        </div>
-                        <div className="space-y-4 relative z-10">
-                            {transactions.map((tx) => {
-                                const isPositive = tx.type === 'Receive' || tx.type === 'Claim';
-                                return (
-                                    <div key={tx.id} className="group/tx flex items-center justify-between p-5 bg-[#0a0319] rounded-2xl border border-white/5 hover:border-white/10 transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,255,255,0.02)] hover:-translate-y-1">
-                                        <div className="flex items-center gap-5">
-                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${isPositive ? 'bg-[#22d3ee]/10 text-[#22d3ee] group-hover/tx:bg-[#22d3ee]/20 group-hover/tx:scale-110' : 'bg-[#a855f7]/10 text-[#a855f7] group-hover/tx:bg-[#a855f7]/20 group-hover/tx:scale-110'}`}>
-                                                {isPositive ? <ArrowDownRight size={20} /> : <ArrowUpRight size={20} />}
-                                            </div>
-                                            <div><p className="font-bold text-white text-lg">{tx.type} <span className="font-light text-gray-400">ARTH</span></p><div className="flex items-center gap-2 text-xs text-gray-500 font-mono mt-1"><Clock size={12} /><span>{tx.date}</span></div></div>
-                                        </div>
-                                        <div className="text-right"><p className={`font-mono font-bold text-lg ${isPositive ? 'text-[#22d3ee]' : 'text-white'}`}>{tx.amount}</p><div className="flex items-center justify-end gap-1 mt-1 opacity-50 group-hover/tx:opacity-100 transition-opacity"><p className="text-xs text-gray-500 font-mono truncate max-w-[100px]">{tx.hash}</p></div></div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                    <div className="dash-card flex flex-col gap-6">
-                        <div className="glass-panel p-8 rounded-[2rem] border border-[#a855f7]/30 text-center relative overflow-hidden group bg-gradient-to-br from-[#0a0319] to-[#12052b] hover:border-[#22d3ee]/40 transition-[border-color] duration-500">
-                            <div className="card-inner-glow absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#a855f7]/20 via-[#22d3ee]/10 to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-700"></div>
-                            <div className="relative z-10 flex flex-col items-center">
-                                <div className="w-20 h-20 rounded-full bg-[#0a0319] border border-[#a855f7]/30 flex items-center justify-center mb-6 glow-purple relative transition-transform duration-500 group-hover:scale-110 group-hover:border-[#22d3ee]/40 group-hover:shadow-[0_0_20px_rgba(34,211,238,0.4)]">
-                                    <div className="absolute inset-0 rounded-full border border-[#a855f7]/50 group-hover:border-[#22d3ee]/50 animate-[spin_4s_linear_infinite] border-t-transparent transition-colors"></div>
-                                    <Activity className="text-[#a855f7] group-hover:text-[#22d3ee] transition-colors" size={32} />
-                                </div>
-                                <h3 className="text-2xl font-bold font-heading mb-3 text-white">Stake & Earn</h3>
-                                <p className="text-sm text-gray-400 mb-8 leading-relaxed font-light">Lock your ARTH tokens to secure the network and earn up to <span className="text-[#a855f7] group-hover:text-[#22d3ee] transition-colors font-bold">12% APY</span> in passive rewards.</p>
-                                <a href="/staking" className="block w-full py-4 rounded-xl bg-white text-black font-bold hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)] hover:scale-105 active:scale-95 duration-200">Go to Staking</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </main>
-            <Footer />
+            </div>
         </div>
     );
 };

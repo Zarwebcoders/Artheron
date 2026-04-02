@@ -91,12 +91,12 @@ const Hero = () => {
                     transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
                     className="flex flex-col sm:flex-row gap-4 mt-8"
                 >
-                    <Link to="/buy">
+                    <Link to="/login">
                         <button className="w-full sm:w-auto px-8 py-4 bg-white text-black rounded-xl font-bold transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.3)]">
                             Start Trading <ArrowRight size={18} />
                         </button>
                     </Link>
-                    <a href="#products">
+                    <a href="#features">
                         <button className="w-full sm:w-auto px-8 py-4 glass-panel-light text-white rounded-xl font-bold hover:bg-white/10 transition-all flex items-center justify-center gap-2">
                             Explore Ecosystem
                         </button>

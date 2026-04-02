@@ -3,6 +3,7 @@ import { Menu, X, Wallet, ChevronDown, Rocket } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useWallet } from '../context/WalletContext';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -11,6 +12,7 @@ const Navbar = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { account, balance, isConnecting, connectWallet, disconnectWallet } = useWallet();
+    const { user, logout } = useAuth();
 
     const isHome = location.pathname === '/';
 
@@ -37,8 +39,6 @@ const Navbar = () => {
         { name: 'Products', href: '#features', isRoute: false },
         { name: 'Tokenomics', href: '#tokenomics', isRoute: false },
         { name: 'Company', href: '#roadmap', isRoute: false },
-        { name: 'Dashboard', href: '/dashboard', isRoute: true },
-        { name: 'Earn', href: '/staking', isRoute: true },
     ];
 
     const formatAddress = (address) => {
@@ -88,7 +88,7 @@ const Navbar = () => {
                             <Rocket size={18} className="text-white" />
                         </div>
                         <span className="text-xl font-bold font-heading text-white tracking-tight">
-                            Artheron
+                            Artheron <span className="text-[#22d3ee] text-[10px] align-top ml-1 drop-shadow-[0_0_5px_#22d3ee]">PRO</span>
                         </span>
                     </Link>
 
@@ -99,64 +99,68 @@ const Navbar = () => {
                         ))}
                     </div>
 
-                    <div className="hidden lg:flex items-center space-x-4">
-                        <Link to="/buy">
-                            <button className="text-sm font-medium text-white hover:text-white hover:text-shadow-[0_0_10px_#22d3ee] transition-all py-2 px-4 shadow-none">
-                                Trade Crypto
-                            </button>
-                        </Link>
-
+                    <div className="hidden lg:flex items-center space-x-6">
                         {account ? (
-                            <div className="relative">
-                                <button
+                            <div className="flex items-center gap-4 bg-white/5 border border-white/5 rounded-2xl px-4 py-2 hover:bg-white/10 transition-all">
+                                <div className="text-right">
+                                    <p className="text-[8px] text-gray-500 uppercase font-bold tracking-widest leading-none mb-1">Balance</p>
+                                    <p className="text-[10px] font-mono font-bold text-white leading-none whitespace-nowrap">{parseFloat(balance).toLocaleString()} ARTH</p>
+                                </div>
+                                <div className="h-6 w-px bg-white/10"></div>
+                                <button 
                                     onClick={() => setDropdownOpen(!dropdownOpen)}
-                                    className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white px-5 py-2.5 rounded-xl font-medium transition-all text-sm"
+                                    className="flex items-center gap-2 group"
                                 >
-                                    <div className="w-5 h-5 rounded-full bg-gradient-to-r from-[#7b3fe4] to-[#22d3ee]"></div>
-                                    {formatAddress(account)}
-                                    <ChevronDown size={14} className="text-gray-400" />
+                                    <span className="text-xs font-mono text-gray-400 group-hover:text-white transition-colors">{formatAddress(account)}</span>
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-[#7b3fe4] to-[#22d3ee] p-[1px]">
+                                        <div className="w-full h-full bg-[#0A0319] rounded-full flex items-center justify-center text-white">
+                                            <Wallet size={14} />
+                                        </div>
+                                    </div>
                                 </button>
-
+                                
                                 <AnimatePresence>
                                     {dropdownOpen && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="absolute right-0 mt-3 w-56 glass-panel border border-white/10 rounded-2xl overflow-hidden shadow-2xl"
-                                        >
-                                            <div className="p-4 border-b border-white/5 bg-white/[0.02]">
-                                                <p className="text-xs text-gray-400 mb-1">Total Balance</p>
-                                                <p className="text-lg font-bold font-mono text-white">{balance} ARTH</p>
-                                            </div>
-                                            <div className="p-2">
-                                                <Link to="/dashboard" onClick={() => setDropdownOpen(false)} className="block px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                                                    Portfolio
-                                                </Link>
-                                                <Link to="/admin" onClick={() => setDropdownOpen(false)} className="block px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                                                    Admin Settings
-                                                </Link>
-                                            </div>
-                                            <div className="p-2 border-t border-white/5">
-                                                <button
+                                        <>
+                                            <div className="fixed inset-0 z-[-1]" onClick={() => setDropdownOpen(false)}></div>
+                                            <motion.div 
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: 10 }}
+                                                className="absolute top-full right-0 mt-2 w-48 glass-panel border border-white/10 rounded-2xl p-2 shadow-2xl overflow-hidden"
+                                            >
+                                                <button 
                                                     onClick={() => { disconnectWallet(); setDropdownOpen(false); }}
-                                                    className="w-full text-left px-4 py-2 text-sm text-[#EF4444] hover:bg-[#EF4444]/10 rounded-lg transition-colors"
+                                                    className="w-full text-left px-4 py-3 text-xs font-bold text-red-500 hover:bg-red-500/10 rounded-xl transition-all flex items-center gap-3 uppercase tracking-widest"
                                                 >
-                                                    Disconnect
+                                                    <X size={14} /> Disconnect
                                                 </button>
-                                            </div>
-                                        </motion.div>
+                                            </motion.div>
+                                        </>
                                     )}
                                 </AnimatePresence>
                             </div>
                         ) : (
-                            <button
+                            !user && (
+                                <>
+                                    <Link to="/login" className="text-sm font-bold text-gray-400 hover:text-white transition-colors uppercase tracking-[0.1em]">
+                                        Login
+                                    </Link>
+                                    <Link to="/register">
+                                        <button className="bg-white text-black hover:bg-gray-100 px-6 py-2.5 rounded-xl font-bold transition-all transform hover:scale-[1.05] text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-95">
+                                            Join Artheron
+                                        </button>
+                                    </Link>
+                                </>
+                            )
+                        )}
+                        {!account && (
+                            <button 
                                 onClick={connectWallet}
                                 disabled={isConnecting}
-                                className="flex items-center gap-2 bg-white text-black hover:bg-gray-100 px-6 py-2.5 rounded-xl font-medium transition-all transform hover:scale-[1.02] text-sm disabled:opacity-70 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+                                className="bg-[#22d3ee]/10 border border-[#22d3ee]/20 text-[#22d3ee] px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all hover:bg-[#22d3ee]/20 hover:scale-105 active:scale-95 flex items-center gap-2 group"
                             >
-                                <Wallet size={16} />
+                                <Wallet size={16} className="group-hover:rotate-12 transition-transform" />
                                 {isConnecting ? 'Connecting...' : 'Connect Wallet'}
                             </button>
                         )}

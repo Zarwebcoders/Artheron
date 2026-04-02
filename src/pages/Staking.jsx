@@ -1,225 +1,313 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
-import ScrollProgressBar from '../components/ScrollProgressBar';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
-import { useWallet } from '../context/WalletContext';
-import { ShieldCheck, Info, TrendingUp, Lock, RefreshCw, AlertCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { 
+    ShieldCheck, 
+    Info, 
+    TrendingUp, 
+    Lock, 
+    RefreshCw, 
+    AlertCircle, 
+    ArrowUpRight, 
+    Zap,
+    Skull,
+    History as HistoryIcon,
+    CheckCircle2
+} from 'lucide-react';
 
 const Staking = () => {
-    const { account, balance } = useWallet();
+    const { balances, updateBalances } = useAuth();
     const [stakeAmount, setStakeAmount] = useState('');
-    const [activeTab, setActiveTab] = useState('stake');
-    const containerRef = useRef(null);
-
-    // State-based counters for maximum stability
-    const [displayStats, setDisplayStats] = useState({
-        tvl: 0,
-        totalStaked: 0,
-        participants: 0,
-        userStake: 0
-    });
-
-    const apy = 12.5;
+    const [isAutoCompound, setIsAutoCompound] = useState(true);
+    const [isSOSModalOpen, setIsSOSModalOpen] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false);
+    
+    // Monthly ROI is 6%
+    const monthlyROI = 6;
+    const dailyROI = (monthlyROI / 30).toFixed(4);
 
     useEffect(() => {
-        if (!containerRef.current) return;
+        gsap.fromTo(".stake-card", 
+            { y: 20, opacity: 0 },
+            { y: 0, opacity: 1, stagger: 0.1, duration: 0.8, ease: "power2.out" }
+        );
+    }, []);
 
-        let ctx = gsap.context(() => {
-            // 1. Staggered Card Entry
-            gsap.fromTo(".stake-card",
-                { y: 50, opacity: 0, scale: 0.95, rotationX: -10 },
-                { y: 0, opacity: 1, scale: 1, rotationX: 0, stagger: 0.15, duration: 1, ease: "back.out(1.2)" }
-            );
+    const handleStake = () => {
+        const amount = parseFloat(stakeAmount);
+        if (isNaN(amount) || amount <= 0 || amount > balances.tokenBalance) return;
 
-            // 2. Number Animators using State
-            const statsObj = { tvl: 0, totalStaked: 0, participants: 0, userStake: 0 };
+        // Mock update
+        updateBalances({
+            tokenBalance: balances.tokenBalance - amount,
+            stakeBalance: balances.stakeBalance + amount
+        });
 
-            gsap.to(statsObj, {
-                tvl: 4200000,
-                totalStaked: 92450000,
-                participants: 4281,
-                userStake: account ? 5000 : 0,
-                duration: 2.5,
-                ease: "power3.out",
-                onUpdate: function () {
-                    setDisplayStats({
-                        tvl: statsObj.tvl,
-                        totalStaked: statsObj.totalStaked,
-                        participants: statsObj.participants,
-                        userStake: statsObj.userStake
-                    });
-                }
-            });
-
-            // 3. 3D Parallax Hover
-            const cards = gsap.utils.toArray('.hover-3d');
-            cards.forEach(card => {
-                const cardInner = card.querySelector('.card-inner-glow');
-                card.addEventListener("mousemove", (e) => {
-                    const rect = card.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    const centerX = rect.width / 2;
-                    const centerY = rect.height / 2;
-                    const rotateX = ((y - centerY) / centerY) * -8;
-                    const rotateY = ((x - centerX) / centerX) * 8;
-                    gsap.to(card, {
-                        rotateX: rotateX,
-                        rotateY: rotateY,
-                        transformPerspective: 1200,
-                        ease: "power2.out",
-                        duration: 0.5
-                    });
-                    if (cardInner) {
-                        gsap.to(cardInner, {
-                            x: (x - centerX) * 0.3,
-                            y: (y - centerY) * 0.3,
-                            opacity: 0.4,
-                            duration: 0.5,
-                            ease: "power2.out",
-                            scale: 1.2
-                        });
-                    }
-                });
-
-                card.addEventListener("mouseleave", () => {
-                    gsap.to(card, {
-                        rotateX: 0,
-                        rotateY: 0,
-                        ease: "elastic.out(1, 0.4)",
-                        duration: 1.5
-                    });
-                    if (cardInner) {
-                        gsap.to(cardInner, {
-                            x: 0, y: 0, opacity: 0.15, duration: 1, ease: "power2.out", scale: 1
-                        });
-                    }
-                });
-            });
-
-        }, containerRef);
-
-        return () => ctx.revert();
-    }, [account]);
-
-    const handleTabSwitch = (tab) => {
-        setActiveTab(tab);
+        setIsSuccess(true);
+        setTimeout(() => setIsSuccess(false), 3000);
         setStakeAmount('');
     };
 
+    const handleSOSWithdraw = () => {
+        const penalty = balances.stakeBalance * 0.20;
+        const netAmount = balances.stakeBalance - penalty;
+
+        updateBalances({
+            stakeBalance: 0,
+            tokenBalance: balances.tokenBalance + netAmount
+        });
+
+        setIsSOSModalOpen(false);
+        setIsSuccess(true);
+        setTimeout(() => setIsSuccess(false), 3000);
+    };
+
     return (
-        <div className="relative w-full min-h-screen bg-[#07010f] text-white flex flex-col overflow-hidden">
-            <ScrollProgressBar />
-            <Navbar />
-
-            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#a855f7] rounded-full mix-blend-screen filter blur-[250px] opacity-[0.03] pointer-events-none"></div>
-            <div className="absolute bottom-1/4 left-0 w-[500px] h-[500px] bg-[#22d3ee] rounded-full mix-blend-screen filter blur-[250px] opacity-[0.03] pointer-events-none"></div>
-
-            <main ref={containerRef} className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full mt-32 mb-20 relative z-10">
-
-                <div className="text-center mb-16">
-                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-widest mb-6">
-                        <ShieldCheck size={14} className="text-[#a855f7]" /> Secure Network
+        <div className="p-6 lg:p-10 space-y-10 relative">
+            
+            {/* Success Notification */}
+            <AnimatePresence>
+                {isSuccess && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: -50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -50 }}
+                        className="fixed top-24 right-10 z-[60] bg-[#22C55E] text-white px-6 py-4 rounded-2xl shadow-[0_0_30px_rgba(34,197,94,0.3)] flex items-center gap-3 border border-white/20"
+                    >
+                        <CheckCircle2 size={24} />
+                        <span className="font-bold uppercase tracking-widest text-xs">Protocol Update Successful</span>
                     </motion.div>
-                    <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-4xl md:text-5xl lg:text-6xl font-bold font-heading mb-6 tracking-tight">
-                        Stake <span className="text-gradient">ARTH</span>
-                    </motion.h1>
-                    <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-xl text-gray-400 max-w-2xl mx-auto font-light leading-relaxed">
-                        Lock your tokens to secure the network, participate in governance, and earn up to <span className="text-[#a855f7] font-bold">12.5% APY</span> in passive rewards.
-                    </motion.p>
+                )}
+            </AnimatePresence>
+
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+                    <h1 className="text-3xl font-bold font-heading mb-1 uppercase tracking-tight">
+                        STAKING <span className="text-gradient">PROTOCOL</span>
+                    </h1>
+                    <p className="text-[10px] text-gray-500 font-mono tracking-widest uppercase bg-white/5 py-1 px-3 rounded-full border border-white/5 inline-block">
+                        Active Yield: 6% Monthly
+                    </p>
+                </motion.div>
+
+                <div className="flex gap-3">
+                    <button className="bg-white/5 border border-white/10 text-gray-400 px-5 py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all hover:bg-white/10 flex items-center gap-2">
+                         <HistoryIcon size={14} /> Stake History
+                    </button>
                 </div>
+            </div>
 
-                <div className="grid lg:grid-cols-12 gap-8 items-start">
-                    <div className="lg:col-span-7">
-                        <div className="stake-card hover-3d glass-panel p-8 md:p-10 rounded-[2rem] border border-white/10 relative overflow-hidden bg-[#0A0319] shadow-[0_0_50px_rgba(168,85,247,0.05)] transition-[border-color] duration-500 hover:border-[#a855f7]/30">
-                            <div className="card-inner-glow absolute top-0 right-0 w-80 h-80 bg-[#a855f7] rounded-full mix-blend-screen filter blur-[100px] opacity-10 pointer-events-none"></div>
-
-                            <div className="flex bg-[#050814] rounded-xl p-1.5 mb-8 border border-white/5 relative z-10">
-                                <button onClick={() => handleTabSwitch('stake')} className={`relative flex-1 py-3 text-center rounded-lg font-bold transition-all duration-300 text-sm tracking-wider uppercase z-10 ${activeTab === 'stake' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}>
-                                    {activeTab === 'stake' && <motion.div layoutId="activeTab" className="absolute inset-0 bg-white/10 rounded-lg shadow-sm border border-white/10" />}
-                                    <span className="relative z-20">Stake</span>
-                                </button>
-                                <button onClick={() => handleTabSwitch('unstake')} className={`relative flex-1 py-3 text-center rounded-lg font-bold transition-all duration-300 text-sm tracking-wider uppercase z-10 ${activeTab === 'unstake' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}>
-                                    {activeTab === 'unstake' && <motion.div layoutId="activeTab" className="absolute inset-0 bg-white/10 rounded-lg shadow-sm border border-white/10" />}
-                                    <span className="relative z-20">Unstake</span>
-                                </button>
-                            </div>
-
-                            <div className="mb-8 relative z-10">
-                                <div className="flex justify-between items-end mb-3 px-1">
-                                    <span className="text-gray-400 font-medium text-sm">Amount Format</span>
-                                    <span className="text-xs text-gray-400 tracking-wider">AVAILABLE: <span className="text-white font-mono font-bold text-sm tracking-normal">{account ? (activeTab === 'stake' ? balance : '5,000.00') : '0.00'}</span></span>
-                                </div>
-                                <div className={`bg-[#050814] border transition-colors duration-300 rounded-2xl p-4 md:p-6 flex justify-between items-center group relative overflow-hidden ${stakeAmount ? 'border-[#a855f7]/50 shadow-[0_0_20px_rgba(168,85,247,0.15)] bg-gradient-to-r from-[#050814] to-[#12052b]' : 'border-white/10 hover:border-white/30'}`}>
-                                    <input type="number" placeholder="0.00" value={stakeAmount} onChange={(e) => setStakeAmount(e.target.value)} className="bg-transparent text-3xl md:text-5xl font-mono text-white outline-none w-2/3 placeholder:text-white/20 transition-all focus:scale-[1.02]" />
-                                    <div className="flex flex-col items-end gap-3 lg:flex-row lg:items-center">
-                                        <button onClick={() => setStakeAmount(activeTab === 'stake' ? balance.replace(/,/g, '') : '5000')} className="text-xs font-bold text-[#22d3ee] bg-[#22d3ee]/10 px-3 py-1.5 rounded border border-[#22d3ee]/20 hover:bg-[#22d3ee]/20 transition-colors uppercase tracking-widest hover:scale-105 active:scale-95">Max</button>
-                                        <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5"><div className="w-5 h-5 rounded-full bg-gradient-to-br from-[#22d3ee] to-[#7b3fe4] animate-[spin_4s_linear_infinite]"></div><span className="font-bold text-sm">ARTH</span></div>
+            <div className="grid lg:grid-cols-3 gap-8 items-start">
+                {/* Staking Form */}
+                <div className="lg:col-span-2 space-y-8">
+                    <div className="stake-card glass-panel p-10 rounded-[2.5rem] border border-white/5 bg-[#0A0319]/60 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-[#7b3fe4] rounded-full mix-blend-screen filter blur-[100px] opacity-[0.05] pointer-events-none"></div>
+                        
+                        <div className="relative z-10">
+                            <div className="flex justify-between items-center mb-10">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-[#7b3fe4]/10 border border-[#7b3fe4]/20 flex items-center justify-center text-[#a855f7] glow-purple">
+                                        <Lock size={24} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-bold font-heading uppercase tracking-tighter text-white">Initialize New Stake</h2>
+                                        <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Artheron Smart Yield Engine v2.0</p>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="bg-[#050814] rounded-2xl p-6 mb-8 border border-white/5 relative z-10 transition-colors duration-300 hover:border-white/10 hover:bg-white/[0.02]">
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center"><span className="text-gray-400 text-sm flex items-center gap-2"><TrendingUp size={16} className="text-[#a855f7]" /> Current APY</span><div className="inline-flex items-center gap-2 bg-[#a855f7]/10 px-3 py-1 rounded-md border border-[#a855f7]/20"><span className="w-2 h-2 rounded-full bg-[#a855f7] animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite]"></span><span className="text-[#a855f7] font-bold font-mono tracking-wide">{apy}%</span></div></div>
-                                    <div className="flex justify-between items-center"><span className="text-gray-400 text-sm flex items-center gap-2"><Lock size={16} /> Lock Period</span><span className="text-white font-mono bg-white/5 px-3 py-1 rounded-md border border-white/5 text-sm">14 Days</span></div>
+                                <div className="text-right">
+                                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 font-bold">Available</p>
+                                    <p className="text-sm font-bold font-mono text-white">{balances.tokenBalance.toLocaleString()} <span className="text-gray-600">ARTH</span></p>
                                 </div>
-                                <AnimatePresence>
-                                    {stakeAmount && parseFloat(stakeAmount) > 0 && (
-                                        <motion.div initial={{ opacity: 0, height: 0, marginTop: 0 }} animate={{ opacity: 1, height: 'auto', marginTop: 16 }} exit={{ opacity: 0, height: 0, marginTop: 0 }} className="border-t border-[#22d3ee]/20 pt-4 overflow-hidden">
-                                            <div className="flex justify-between items-center text-sm"><span className="text-gray-400 flex items-center gap-2"><RefreshCw size={14} className="text-[#22d3ee] animate-spin-slow" /> Est. Monthly Earnings</span><span className="text-[#22d3ee] font-bold font-mono text-lg tracking-tight drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">+ {((parseFloat(stakeAmount) * apy) / 100 / 12).toFixed(2)} ARTH</span></div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
                             </div>
 
-                            <div className="relative z-10 group/btnwrap">
-                                {!account ? (
-                                    <button className="w-full py-4 rounded-xl bg-white/5 border border-white/10 text-gray-400 font-bold uppercase tracking-wider cursor-not-allowed text-sm flex items-center justify-center gap-2"><AlertCircle size={18} /> Connect Wallet to Proceed</button>
-                                ) : (
-                                    <button className="w-full py-4 rounded-xl bg-gradient-to-r from-[#7b3fe4] to-[#a855f7] text-white font-bold uppercase tracking-widest transition-all relative overflow-hidden shadow-[0_0_20px_rgba(168,85,247,0.4)] group-hover/btnwrap:shadow-[0_0_40px_rgba(34,211,238,0.4)] transform group-hover/btnwrap:-translate-y-1 active:translate-y-0 active:scale-95 duration-200">
-                                        <div className="absolute inset-0 bg-gradient-to-r from-[#a855f7] to-[#22d3ee] opacity-0 group-hover/btnwrap:opacity-100 transition-opacity duration-500"></div>
-                                        <span className="relative z-10 drop-shadow-md">{activeTab === 'stake' ? 'Confirm Stake' : 'Confirm Unstake'}</span>
-                                    </button>
-                                )}
+                            <div className="space-y-8">
+                                <div className="relative">
+                                    <input 
+                                        type="number" 
+                                        placeholder="0.00" 
+                                        value={stakeAmount}
+                                        onChange={(e) => setStakeAmount(e.target.value)}
+                                        className="w-full bg-[#050814]/50 border border-white/5 rounded-3xl py-12 px-10 text-6xl font-mono text-white outline-none focus:border-[#7b3fe4]/30 transition-all font-bold placeholder:text-gray-800"
+                                    />
+                                    <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-4">
+                                        <button 
+                                            onClick={() => setStakeAmount(balances.tokenBalance.toString())}
+                                            className="text-[10px] font-bold text-[#7b3fe4] uppercase tracking-widest py-2 px-4 bg-[#7b3fe4]/10 rounded-xl border border-[#7b3fe4]/20 hover:bg-[#7b3fe4]/20 transition-all"
+                                        >
+                                            Max Use
+                                        </button>
+                                        <div className="flex items-center gap-2 bg-white/5 py-3 px-5 rounded-2xl border border-white/5">
+                                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#7b3fe4] to-[#22d3ee] flex items-center justify-center text-[10px] font-bold">A</div>
+                                            <span className="font-bold text-sm tracking-widest">ARTH</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="bg-white/5 rounded-3xl p-6 border border-white/5 flex flex-col justify-between group/comp hover:bg-white/[0.08] transition-all">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Auto Compound</span>
+                                                <span className="text-xs text-white font-bold">Maximize Yield Efficiency</span>
+                                            </div>
+                                            <button 
+                                                onClick={() => setIsAutoCompound(!isAutoCompound)}
+                                                className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${isAutoCompound ? 'bg-[#22C55E]' : 'bg-gray-700'}`}
+                                            >
+                                                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${isAutoCompound ? 'left-7' : 'left-1'}`}></div>
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-[10px] text-[#22C55E] font-bold uppercase tracking-widest">
+                                            <Zap size={14} /> Efficiency +18.4%
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white/5 rounded-3xl p-6 border border-white/5 flex flex-col justify-between">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Monthly ROI</span>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-3xl font-bold font-mono text-[#a855f7]">6.00%</span>
+                                                <div className="bg-[#a855f7]/10 px-2 py-1 rounded-lg border border-[#a855f7]/20 text-[8px] font-bold text-[#a855f7] uppercase tracking-widest">Fixed</div>
+                                            </div>
+                                        </div>
+                                        <p className="text-[10px] text-gray-700 font-mono mt-2 uppercase tracking-tight">Approx {dailyROI}% Daily Profit</p>
+                                    </div>
+                                </div>
+
+                                <button 
+                                    onClick={handleStake}
+                                    disabled={!stakeAmount || parseFloat(stakeAmount) <= 0}
+                                    className="w-full py-6 rounded-3xl bg-gradient-to-r from-[#7b3fe4] to-[#a855f7] text-white font-bold uppercase tracking-widest text-xs shadow-[0_0_30px_rgba(123,63,228,0.3)] hover:shadow-[0_0_60px_rgba(123,63,228,0.5)] transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-30 disabled:hover:scale-100 flex items-center justify-center gap-3 group"
+                                >
+                                    <span>Execute Staking Protocol</span>
+                                    <ArrowUpRight size={18} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Sidebar Stats */}
+                <div className="space-y-6">
+                    <div className="stake-card glass-panel p-8 rounded-[2.5rem] border border-[#a855f7]/20 bg-[#0A0319]/80 backdrop-blur-xl relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#a855f7] rounded-full mix-blend-screen filter blur-[60px] opacity-[0.1]"></div>
+                        
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="w-10 h-10 rounded-xl bg-[#a855f7]/10 border border-[#a855f7]/20 flex items-center justify-center text-[#a855f7]">
+                                    <TrendingUp size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold font-heading uppercase tracking-tighter">Yield Status</h3>
+                                    <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold">Real-time Stats</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div>
+                                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 font-bold">Active Total Staked</p>
+                                    <p className="text-3xl font-bold font-mono text-white">{balances.stakeBalance.toLocaleString()} <span className="text-sm text-gray-700">ARTH</span></p>
+                                </div>
+                                
+                                <div className="h-px bg-white/5"></div>
+
+                                <div>
+                                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 font-bold">Unclaimed Earnings</p>
+                                    <div className="flex justify-between items-end">
+                                        <p className="text-3xl font-bold font-mono text-[#22C55E]">{balances.incomeBalance.toLocaleString()} <span className="text-sm text-gray-700">ARTH</span></p>
+                                        <button className="text-[10px] font-bold text-white uppercase tracking-widest px-4 py-2 bg-white/10 rounded-xl border border-white/10 hover:bg-white/20 transition-all">Claim</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="lg:col-span-5 space-y-6">
-                        {account && (
-                            <div className="stake-card hover-3d glass-panel p-8 rounded-[2rem] border border-[#22d3ee]/20 relative overflow-hidden bg-[#0A0319]/90 backdrop-blur-md shadow-[0_0_30px_rgba(34,211,238,0.05)] transition-[border-color] duration-500 hover:border-[#22d3ee]/40">
-                                <div className="card-inner-glow absolute top-0 right-0 w-40 h-40 bg-[#22d3ee] rounded-full mix-blend-screen filter blur-[60px] opacity-[0.15]"></div>
-                                <div className="flex items-center gap-4 mb-6 relative z-10"><div className="w-12 h-12 rounded-xl bg-[#22d3ee]/10 flex items-center justify-center text-[#22d3ee] border border-[#22d3ee]/20 shadow-[0_0_15px_rgba(34,211,238,0.2)]"><Lock size={20} /></div><div><h3 className="text-xl font-bold font-heading text-white">Your Position</h3><p className="text-xs text-gray-400 uppercase tracking-widest">Active Staking</p></div></div>
-                                <div className="space-y-6 relative z-10">
-                                    <div className="p-5 bg-[#050814] rounded-xl border border-white/5 transition-colors duration-300 hover:bg-white/[0.02] hover:border-white/10">
-                                        <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">Staked Amount</p>
-                                        <div className="flex items-end gap-2"><p className="text-3xl font-mono font-bold text-white tracking-tight">{Math.ceil(displayStats.userStake).toLocaleString()}.00</p><span className="text-sm text-gray-500 font-bold mb-1">ARTH</span></div>
-                                    </div>
-                                    <div className="p-5 bg-gradient-to-br from-[#a855f7]/10 to-transparent rounded-xl border border-[#a855f7]/20 group/claim hover:border-[#a855f7]/40 transition-[border-color] duration-300">
-                                        <p className="text-[#a855f7] text-xs uppercase tracking-widest mb-2 font-bold">Unclaimed Rewards</p>
-                                        <div className="flex justify-between items-center"><div className="flex items-end gap-2"><p className="text-3xl font-mono font-bold text-[#22d3ee] tracking-tight drop-shadow-[0_0_10px_rgba(34,211,238,0.3)]">250.00</p><span className="text-sm text-[#22d3ee]/50 font-bold mb-1">ARTH</span></div><button className="bg-[#a855f7]/20 hover:bg-[#a855f7] hover:shadow-[0_0_20px_rgba(168,85,247,0.4)] px-5 py-2.5 rounded-lg text-sm font-bold border border-[#a855f7]/50 transition-all duration-300 text-white uppercase tracking-wider hover:scale-105 active:scale-95">Claim</button></div>
-                                    </div>
+                    <div className="stake-card glass-panel p-8 rounded-[2.5rem] border border-red-500/10 bg-red-500/[0.02] hover:bg-red-500/[0.04] transition-all relative overflow-hidden group">
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+                                    <Skull size={20} />
                                 </div>
+                                <h3 className="text-lg font-bold font-heading uppercase tracking-tighter text-red-500/80">SOS Withdraw</h3>
                             </div>
-                        )}
-                        <div className="stake-card hover-3d glass-panel p-8 rounded-[2rem] border border-white/5 relative overflow-hidden bg-white/[0.02] transition-[border-color] duration-500 hover:border-white/10">
-                            <div className="card-inner-glow absolute -bottom-10 -right-10 w-40 h-40 bg-white rounded-full mix-blend-screen filter blur-[70px] opacity-[0.05]"></div>
-                            <div className="flex items-center gap-4 mb-8 relative z-10"><div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-gray-400 border border-white/10"><Info size={18} /></div><h3 className="text-lg font-bold font-heading text-white">Global Stats</h3></div>
-                            <div className="space-y-6 relative z-10">
-                                <div className="flex flex-col gap-1 transition-transform duration-300 hover:translate-x-1"><span className="text-gray-500 text-xs uppercase tracking-widest">Total Value Locked (TVL)</span><span className="font-mono font-bold text-white text-xl">${(displayStats.tvl / 1000000).toFixed(1)}M <span className="text-gray-600 text-sm">USD</span></span></div>
-                                <div className="w-full h-px bg-gradient-to-r from-white/10 to-transparent"></div>
-                                <div className="flex flex-col gap-1 transition-transform duration-300 hover:translate-x-1"><span className="text-gray-500 text-xs uppercase tracking-widest">Total Artheron Staked</span><span className="font-mono font-bold text-[#a855f7] text-xl">{Math.ceil(displayStats.totalStaked).toLocaleString()} <span className="text-[#a855f7]/50 text-sm">ARTH</span></span></div>
-                                <div className="w-full h-px bg-gradient-to-r from-white/10 to-transparent"></div>
-                                <div className="flex flex-col gap-1 transition-transform duration-300 hover:translate-x-1"><span className="text-gray-500 text-xs uppercase tracking-widest">Staking Participants</span><span className="font-mono font-bold text-white text-xl">{Math.ceil(displayStats.participants).toLocaleString()} <span className="text-gray-600 text-sm">Wallets</span></span></div>
-                            </div>
+                            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-6 leading-relaxed bg-red-500/5 p-3 rounded-xl border border-red-500/10">
+                                Emergency exit allows <span className="text-red-400 font-bold">Instant Liquidation</span>. 
+                                A <span className="text-red-400 font-bold">20% Penalty</span> will be deducted from your total stake.
+                            </p>
+                            <button 
+                                onClick={() => setIsSOSModalOpen(true)}
+                                disabled={balances.stakeBalance <= 0}
+                                className="w-full py-3.5 rounded-2xl border border-red-500/20 text-red-500 font-bold uppercase tracking-widest text-[10px] hover:bg-red-500 hover:text-white transition-all disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-red-500"
+                            >
+                                Initiate SOS Exit
+                            </button>
                         </div>
                     </div>
                 </div>
-            </main>
-            <Footer />
+            </div>
+
+            {/* SOS Modal */}
+            <AnimatePresence>
+                {isSOSModalOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsSOSModalOpen(false)}
+                            className="absolute inset-0 bg-[#07010f]/90 backdrop-blur-xl"
+                        />
+                        
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="relative w-full max-w-lg glass-panel p-10 rounded-[2.5rem] border border-red-500/20 bg-[#0D041A] shadow-[0_0_100px_rgba(239,68,68,0.1)]"
+                        >
+                            <div className="text-center mb-10">
+                                <div className="w-20 h-20 mx-auto rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(239,68,68,0.2)]">
+                                    <AlertCircle size={40} className="text-red-500" />
+                                </div>
+                                <h2 className="text-3xl font-bold font-heading mb-2 uppercase tracking-tighter">Emergency Liquidate?</h2>
+                                <p className="text-gray-500 text-sm font-light">Confirm heavy penalty execution</p>
+                            </div>
+
+                            <div className="space-y-4 mb-10">
+                                <div className="flex justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                                    <span className="text-xs text-gray-500 uppercase tracking-widest font-bold">Total Staked</span>
+                                    <span className="text-sm font-bold font-mono">{balances.stakeBalance.toLocaleString()} ARTH</span>
+                                </div>
+                                <div className="flex justify-between p-4 bg-red-500/5 rounded-2xl border border-red-500/10">
+                                    <span className="text-xs text-red-500/80 uppercase tracking-widest font-bold">SOS Penalty (20%)</span>
+                                    <span className="text-sm font-bold font-mono text-red-500">-{(balances.stakeBalance * 0.2).toLocaleString()} ARTH</span>
+                                </div>
+                                <div className="flex justify-between p-4 bg-[#22C55E]/5 rounded-2xl border border-[#22C55E]/10">
+                                    <span className="text-xs text-[#22C55E] uppercase tracking-widest font-bold">Net Return</span>
+                                    <span className="text-lg font-bold font-mono text-[#22C55E]">{(balances.stakeBalance * 0.8).toLocaleString()} ARTH</span>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <button 
+                                    onClick={() => setIsSOSModalOpen(false)}
+                                    className="py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold uppercase tracking-widest text-[10px] hover:bg-white/10 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={handleSOSWithdraw}
+                                    className="py-4 rounded-2xl bg-red-600 text-white font-bold uppercase tracking-widest text-[10px] shadow-[0_0_30px_rgba(220,38,38,0.3)] hover:bg-red-700 transition-all"
+                                >
+                                    Liquidate Now
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
         </div>
     );
 };
