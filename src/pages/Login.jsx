@@ -35,24 +35,25 @@ const Login = () => {
         );
     }, []);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         if (!email || !password) return setError('Please fill in all fields.');
         
         setIsLoggingIn(true);
         setError('');
 
-        // Mock login delay
-        setTimeout(() => {
-            if (email === 'admin@artheron.com' && password === 'admin123') {
-                login({ email, role: 'admin', id: 'admin_1' });
+        const result = await login(email, password);
+        
+        if (result.success) {
+            if (result.role === 'admin') {
                 navigate('/admin');
             } else {
-                login({ email, role: 'user', id: 'user_' + Date.now() });
                 navigate('/dashboard');
             }
-            setIsLoggingIn(false);
-        }, 1500);
+        } else {
+            setError(result.message);
+        }
+        setIsLoggingIn(false);
     };
 
     const handleWalletLogin = async () => {

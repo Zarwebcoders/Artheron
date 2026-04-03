@@ -15,6 +15,8 @@ import {
     ChevronDown
 } from 'lucide-react';
 
+import API from '../api/axios';
+
 const Withdraw = () => {
     const { balances, updateBalances } = useAuth();
     const [withdrawType, setWithdrawType] = useState('ARTH'); // 'ARTH' or 'USDT'
@@ -23,37 +25,44 @@ const Withdraw = () => {
     const [network, setNetwork] = useState('BSC (BEP-20)');
     const [isSuccess, setIsSuccess] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [error, setError] = useState('');
 
     const activeBalance = withdrawType === 'ARTH' ? balances.tokenBalance : balances.incomeBalance;
     const fee = withdrawType === 'ARTH' ? 5 : 1; // 5 ARTH or 1 USDT fee
     
     useEffect(() => {
+        updateBalances();
         gsap.fromTo(".withdraw-card", 
             { y: 30, opacity: 0 },
             { y: 0, opacity: 1, stagger: 0.1, duration: 1, ease: "power3.out" }
         );
     }, [withdrawType]);
 
-    const handleWithdraw = () => {
+    const handleWithdraw = async () => {
         const val = parseFloat(amount);
         if (isNaN(val) || val <= 0 || val + fee > activeBalance || !address) return;
 
         setIsProcessing(true);
+        setError('');
         
-        // Mock processing delay
-        setTimeout(() => {
-            if (withdrawType === 'ARTH') {
-                updateBalances({ tokenBalance: balances.tokenBalance - (val + fee) });
-            } else {
-                updateBalances({ incomeBalance: balances.incomeBalance - (val + fee) });
+        try {
+            const res = await API.post('/tx/withdraw', {
+                amount: val,
+                currency: withdrawType,
+                walletAddress: address
+            });
+
+            if (res.data.success) {
+                setIsSuccess(true);
+                updateBalances();
+                setAmount('');
+                setAddress('');
+                setTimeout(() => setIsSuccess(false), 4000);
             }
-            
-            setIsProcessing(false);
-            setIsSuccess(true);
-            setAmount('');
-            setAddress('');
-            setTimeout(() => setIsSuccess(false), 4000);
-        }, 2000);
+        } catch (err) {
+            setError(err.response?.data?.message || 'Withdrawal failed');
+        }
+        setIsProcessing(false);
     };
 
     const setPercentage = (p) => {
@@ -184,6 +193,12 @@ const Withdraw = () => {
                                     </div>
                                 </div>
                             </div>
+
+                            {error && (
+                                <div className="flex items-center gap-3 text-red-500 bg-red-500/5 p-4 rounded-2xl border border-red-500/10 text-xs font-bold uppercase tracking-widest">
+                                    <AlertCircle size={18} /> {error}
+                                </div>
+                            )}
 
                             {/* Destination Input */}
                             <div className="grid md:grid-cols-2 gap-8">

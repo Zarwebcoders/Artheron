@@ -11,13 +11,18 @@ import {
     ChevronRight,
     ArrowUpRight,
     Menu,
-    X
+    X,
+    Users,
+    Settings,
+    Flame
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useWallet } from '../context/WalletContext';
 import gsap from 'gsap';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
     const { user, logout, isAdmin } = useAuth();
+    const { isOwner } = useWallet();
     const navigate = useNavigate();
     const sidebarRef = useRef(null);
 
@@ -28,8 +33,12 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
     const menuItems = isAdmin 
         ? [
-            { name: 'Admin Panel', path: '/admin', icon: <ShieldCheck size={20} className="text-[#EF4444]" /> },
-            { name: 'Profile', path: '/profile', icon: <User size={20} /> },
+            { name: 'Admin Dashboard', path: '/admin/dashboard', icon: <ShieldCheck size={20} className="text-[#EF4444]" /> },
+            { name: 'User Database', path: '/admin/users', icon: <Users size={20} className="text-[#a855f7]" /> },
+            { name: 'Verify Queue', path: '/admin/transactions', icon: <History size={20} className="text-cyan-500" /> },
+            { name: 'System Config', path: '/admin/settings', icon: <Settings size={20} className="text-gray-400" /> },
+            ...(isOwner ? [{ name: 'Sovereign Ctrl', path: '/admin/token', icon: <Flame size={20} className="text-orange-500" /> }] : []),
+            { name: 'Profile Account', path: '/profile', icon: <User size={20} /> },
         ]
         : [
             { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },

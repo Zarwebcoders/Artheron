@@ -24,7 +24,7 @@ const Register = () => {
     const [error, setError] = useState('');
     const [isSuccess, setIsSuccess] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const { login } = useAuth();
+    const { login, register } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -38,7 +38,7 @@ const Register = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const { name, email, password, confirmPassword } = formData;
 
@@ -49,17 +49,17 @@ const Register = () => {
         setIsLoading(true);
         setError('');
 
-        // Mock registration flow
-        setTimeout(() => {
+        const result = await register(name, email, password);
+        
+        if (result.success) {
             setIsSuccess(true);
-            setIsLoading(false);
-            
-            // Auto login after 2 seconds
             setTimeout(() => {
-                login({ email, name, role: 'user', id: 'user_' + Date.now() });
                 navigate('/dashboard');
             }, 2000);
-        }, 1500);
+        } else {
+            setError(result.message);
+        }
+        setIsLoading(false);
     };
 
     return (

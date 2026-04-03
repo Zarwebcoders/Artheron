@@ -1,9 +1,13 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Home from './pages/Home'
 import BuyToken from './pages/BuyToken'
 import Dashboard from './pages/Dashboard'
 import Staking from './pages/Staking'
-import AdminPanel from './pages/AdminPanel'
+import AdminOverview from './pages/admin/AdminOverview'
+import AdminUsers from './pages/admin/AdminUsers'
+import AdminTransactions from './pages/admin/AdminTransactions'
+import AdminSettings from './pages/admin/AdminSettings'
+import AdminToken from './pages/admin/AdminToken'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import History from './pages/History'
@@ -30,8 +34,13 @@ function App() {
         <Route path="/profile" element={<DashboardLayout><Profile /></DashboardLayout>} />
         <Route path="/withdraw" element={<DashboardLayout><Withdraw /></DashboardLayout>} />
 
-        {/* Admin Route */}
-        <Route path="/admin" element={<DashboardLayout><AdminPanel /></DashboardLayout>} />
+        {/* Admin Routes */}
+        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="/admin/dashboard" element={<DashboardLayout><AdminOverview /></DashboardLayout>} />
+        <Route path="/admin/users" element={<DashboardLayout><AdminUsers /></DashboardLayout>} />
+        <Route path="/admin/transactions" element={<DashboardLayout><AdminTransactions /></DashboardLayout>} />
+        <Route path="/admin/settings" element={<DashboardLayout><AdminSettings /></DashboardLayout>} />
+        <Route path="/admin/token" element={<DashboardLayout><AdminToken /></DashboardLayout>} />
       </Routes>
     </div>
   )

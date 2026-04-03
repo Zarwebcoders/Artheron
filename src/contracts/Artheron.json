@@ -11,6 +11,7 @@
     "function approve(address, uint256) returns (bool)",
     "function transferFrom(address, address, uint256) returns (bool)",
     "function burn(uint256)",
+    "function buyTokens() payable",
     "function owner() view returns (address)",
     "function transferOwnership(address)",
     "function renounceOwnership()",

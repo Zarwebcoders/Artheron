@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import API from '../api/axios';
 
 const AuthContext = createContext();
 
@@ -20,32 +21,56 @@ export const AuthProvider = ({ children }) => {
     });
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        // Mock session check
-        const savedUser = localStorage.getItem('artheron_user');
-        const savedBalances = localStorage.getItem('artheron_balances');
-        
-        if (savedUser) {
-            setUser(JSON.parse(savedUser));
-        }
-        if (savedBalances) {
-            setBalances(JSON.parse(savedBalances));
+    const checkStatus = async () => {
+        const token = localStorage.getItem('artheron_token');
+        if (token) {
+            try {
+                const res = await API.get('/auth/me');
+                if (res.data.success) {
+                    const userData = res.data.data;
+                    setUser(userData);
+                    setBalances(userData.balances);
+                }
+            } catch (err) {
+                console.error("Session check failed", err);
+                logout();
+            }
         }
         setLoading(false);
+    };
+
+    useEffect(() => {
+        checkStatus();
     }, []);
 
-    const login = (userData) => {
-        setUser(userData);
-        // Initial mock balances for a new PRO user
-        const initialBalances = {
-            tokenBalance: 5000,
-            stakeBalance: 1200,
-            incomeBalance: 150,
-            lockedBalance: 0
-        };
-        setBalances(initialBalances);
-        localStorage.setItem('artheron_user', JSON.stringify(userData));
-        localStorage.setItem('artheron_balances', JSON.stringify(initialBalances));
+    const login = async (email, password) => {
+        try {
+            const res = await API.post('/auth/login', { email, password });
+            if (res.data.success) {
+                const { token, user: userData } = res.data;
+                localStorage.setItem('artheron_token', token);
+                setUser(userData);
+                setBalances(userData.balances);
+                return { success: true, role: userData.role };
+            }
+        } catch (err) {
+            return { success: false, message: err.response?.data?.message || 'Login failed' };
+        }
+    };
+
+    const register = async (name, email, password) => {
+        try {
+            const res = await API.post('/auth/register', { name, email, password });
+            if (res.data.success) {
+                const { token, user: userData } = res.data;
+                localStorage.setItem('artheron_token', token);
+                setUser(userData);
+                setBalances(userData.balances);
+                return { success: true };
+            }
+        } catch (err) {
+            return { success: false, message: err.response?.data?.message || 'Registration failed' };
+        }
     };
 
     const logout = () => {
@@ -56,16 +81,21 @@ export const AuthProvider = ({ children }) => {
             incomeBalance: 0,
             lockedBalance: 0
         });
-        localStorage.removeItem('artheron_user');
-        localStorage.removeItem('artheron_balances');
+        localStorage.removeItem('artheron_token');
     };
 
     const isAdmin = user?.role === 'admin';
 
-    const updateBalances = (newBalances) => {
-        const updated = { ...balances, ...newBalances };
-        setBalances(updated);
-        localStorage.setItem('artheron_balances', JSON.stringify(updated));
+    const updateBalances = async () => {
+        // Fetch fresh balances from backend
+        try {
+            const res = await API.get('/auth/me');
+            if (res.data.success) {
+                setBalances(res.data.data.balances);
+            }
+        } catch (err) {
+            console.error("Balance update failed", err);
+        }
     };
 
     return (
@@ -73,6 +103,7 @@ export const AuthProvider = ({ children }) => {
             user, 
             balances, 
             login, 
+            register,
             logout, 
             isAdmin, 
             loading,

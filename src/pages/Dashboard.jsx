@@ -19,7 +19,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useWallet } from '../context/WalletContext';
 
 const Dashboard = () => {
-    const { balances, user } = useAuth();
+    const { balances, user, updateBalances } = useAuth();
     const { balance } = useWallet();
     
     // Smooth counter state
@@ -41,6 +41,10 @@ const Dashboard = () => {
     ];
 
     useEffect(() => {
+        updateBalances();
+    }, []);
+
+    useEffect(() => {
         const statsObj = { token: 0, stake: 0, income: 0, locked: 0 };
         
         gsap.to(statsObj, {
@@ -57,7 +61,7 @@ const Dashboard = () => {
             { y: 20, opacity: 0 },
             { y: 0, opacity: 1, stagger: 0.1, duration: 0.8, ease: "power2.out" }
         );
-    }, [balances]);
+    }, [balances, balance]);
 
     const stats = [
         { label: 'Token Balance', value: counts.token, color: '#22d3ee', icon: <Coins size={20} />, sub: 'Available ARTH' },
@@ -130,8 +134,8 @@ const Dashboard = () => {
                         </div>
                     </div>
 
-                    <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-[300px] w-full relative">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                             <AreaChart data={chartData}>
                                 <defs>
                                     <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">

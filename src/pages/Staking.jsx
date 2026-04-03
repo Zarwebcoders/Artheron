@@ -16,13 +16,16 @@ import {
     CheckCircle2
 } from 'lucide-react';
 
+import API from '../api/axios';
+
 const Staking = () => {
     const { balances, updateBalances } = useAuth();
     const [stakeAmount, setStakeAmount] = useState('');
     const [isAutoCompound, setIsAutoCompound] = useState(true);
-    const [isSOSModalOpen, setIsSOSModalOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
     const [isSuccess, setIsSuccess] = useState(false);
-    
+    const [isSOSModalOpen, setIsSOSModalOpen] = useState(false);
     // Monthly ROI is 6%
     const monthlyROI = 6;
     const dailyROI = (monthlyROI / 30).toFixed(4);
@@ -34,33 +37,57 @@ const Staking = () => {
         );
     }, []);
 
-    const handleStake = () => {
+    const handleStake = async () => {
         const amount = parseFloat(stakeAmount);
-        if (isNaN(amount) || amount <= 0 || amount > balances.tokenBalance) return;
+        if (isNaN(amount) || amount <= 0) return;
 
-        // Mock update
-        updateBalances({
-            tokenBalance: balances.tokenBalance - amount,
-            stakeBalance: balances.stakeBalance + amount
-        });
-
-        setIsSuccess(true);
-        setTimeout(() => setIsSuccess(false), 3000);
-        setStakeAmount('');
+        setIsLoading(true);
+        setError('');
+        try {
+            const res = await API.post('/assets/stake', { amount });
+            if (res.data.success) {
+                setIsSuccess(true);
+                updateBalances();
+                setStakeAmount('');
+                setTimeout(() => setIsSuccess(false), 3000);
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Staking failed');
+        }
+        setIsLoading(false);
     };
 
-    const handleSOSWithdraw = () => {
-        const penalty = balances.stakeBalance * 0.20;
-        const netAmount = balances.stakeBalance - penalty;
+    const handleClaim = async () => {
+        setIsLoading(true);
+        setError('');
+        try {
+            const res = await API.post('/assets/claim');
+            if (res.data.success) {
+                setIsSuccess(true);
+                updateBalances();
+                setTimeout(() => setIsSuccess(false), 3000);
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Claim failed');
+        }
+        setIsLoading(false);
+    };
 
-        updateBalances({
-            stakeBalance: 0,
-            tokenBalance: balances.tokenBalance + netAmount
-        });
-
-        setIsSOSModalOpen(false);
-        setIsSuccess(true);
-        setTimeout(() => setIsSuccess(false), 3000);
+    const handleSOSWithdraw = async () => {
+        setIsLoading(true);
+        setError('');
+        try {
+            const res = await API.post('/assets/sos');
+            if (res.data.success) {
+                setIsSuccess(true);
+                updateBalances();
+                setIsSOSModalOpen(false);
+                setTimeout(() => setIsSuccess(false), 3000);
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'SOS liquidation failed');
+        }
+        setIsLoading(false);
     };
 
     return (
@@ -212,12 +239,24 @@ const Staking = () => {
                                 </div>
                                 
                                 <div className="h-px bg-white/5"></div>
+                                
+                                {error && (
+                                    <div className="flex items-center gap-2 text-red-500 bg-red-500/5 p-3 rounded-xl border border-red-500/10 text-[10px] uppercase font-bold tracking-widest">
+                                        <AlertCircle size={14} /> {error}
+                                    </div>
+                                )}
 
                                 <div>
                                     <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 font-bold">Unclaimed Earnings</p>
                                     <div className="flex justify-between items-end">
                                         <p className="text-3xl font-bold font-mono text-[#22C55E]">{balances.incomeBalance.toLocaleString()} <span className="text-sm text-gray-700">ARTH</span></p>
-                                        <button className="text-[10px] font-bold text-white uppercase tracking-widest px-4 py-2 bg-white/10 rounded-xl border border-white/10 hover:bg-white/20 transition-all">Claim</button>
+                                        <button 
+                                            onClick={handleClaim}
+                                            disabled={balances.incomeBalance <= 0 || isLoading}
+                                            className="text-[10px] font-bold text-white uppercase tracking-widest px-4 py-2 bg-white/10 rounded-xl border border-white/10 hover:bg-white/20 transition-all disabled:opacity-20"
+                                        >
+                                            {isLoading ? '...' : 'Claim'}
+                                        </button>
                                     </div>
                                 </div>
                             </div>

@@ -22,14 +22,14 @@ const DashboardLayout = ({ children }) => {
     }
 
     // Protect admin route
-    if (location.pathname === '/admin' && !isAdmin) {
+    if (location.pathname.startsWith('/admin') && !isAdmin) {
         return <Navigate to="/dashboard" replace />;
     }
 
     // Redirect admin from user-only pages
     const userOnlyPaths = ['/dashboard', '/buy', '/staking', '/withdraw', '/history'];
     if (isAdmin && userOnlyPaths.includes(location.pathname)) {
-        return <Navigate to="/admin" replace />;
+        return <Navigate to="/admin/dashboard" replace />;
     }
 
     return (
