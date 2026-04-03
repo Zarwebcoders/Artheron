@@ -25,7 +25,11 @@ app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
 // Enable CORS
-app.use(cors());
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'https://artheron.vercel.app',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
+}));
 
 // Dev logging middleware
 if (process.env.NODE_ENV === 'development') {

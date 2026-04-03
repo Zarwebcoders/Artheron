@@ -173,7 +173,7 @@ const AdminTransactions = () => {
                                         <td className="px-10 py-6">
                                             {tx.type === 'buy' && tx.proofUrl ? (
                                                 <a 
-                                                    href={tx.proofUrl.startsWith('http') ? tx.proofUrl : `http://localhost:5000/${tx.proofUrl}`} 
+                                                    href={tx.proofUrl.startsWith('http') ? tx.proofUrl : `https://artheron-backend.vercel.app/${tx.proofUrl}`} 
                                                     target="_blank" 
                                                     rel="noreferrer"
                                                     className="text-[9px] text-cyan-500 underline uppercase tracking-[0.2em] font-bold flex items-center gap-1 group/link"
