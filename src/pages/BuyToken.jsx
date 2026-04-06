@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ethers } from 'ethers';
 import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import { useAuth } from '../context/AuthContext';
@@ -14,7 +15,8 @@ import {
     CheckCircle2,
     Info,
     CreditCard,
-    ArrowRight
+    ArrowRight,
+    RefreshCw
 } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 
@@ -22,7 +24,7 @@ import API from '../api/axios';
 
 const BuyToken = () => {
     const { balances, updateBalances } = useAuth();
-    const { account, balance, isConnecting, connectWallet, contract } = useWallet();
+    const { account, balance, isConnecting, connectWallet, contract, provider } = useWallet();
     const [buyMode, setBuyMode] = useState('manual');
     const [amount, setAmount] = useState('');
     const [autoAmount, setAutoAmount] = useState('');
@@ -44,17 +46,37 @@ const BuyToken = () => {
         setError('');
 
         try {
-            // In a real scenario, you'd calculate the 'value' based on the amount of tokens
-            // Here we'll simulate a 0.01 ETH transaction for demo purposes
-            // or ask the contract for the price.
+            // Calculate the value to send to the contract based on autoAmount
+            // Exchange Rate: 0.0001 ETH per 1 ARTH
+            const pricePerToken = 0.0001; 
+            const totalValueWei = ethers.parseEther((parseFloat(autoAmount) * pricePerToken).toString());
             
-            const tx = await contract.buyTokens({ 
-                value: 0 // Replace with actual value calculation if needed
-            });
+            // Diagnostics: Check user's native balance first
+            const userBalance = await provider.getBalance(account);
+            if (userBalance < totalValueWei) {
+                throw new Error(`Insufficient ETH: You need at least ${(parseFloat(autoAmount) * pricePerToken).toFixed(4)} ETH + gas.`);
+            }
+
+            // Execute the contract call with a manual gas limit fallback if estimation fails
+            // This allows the user to see the actual revert reason in MetaMask
+            let tx;
+            try {
+                tx = await contract.buyTokens({ 
+                    value: totalValueWei 
+                });
+            } catch (estError) {
+                console.warn("Gas estimation failed, attempting with manual limit...", estError);
+                // Fallback: Manually set gas limit to bypass estimation revert
+                tx = await contract.buyTokens({ 
+                    value: totalValueWei,
+                    gasLimit: 100000 // Standard gas limit for a simple buy transaction
+                });
+            }
+
             const receipt = await tx.wait();
 
             if (receipt.status === 1) {
-                // Record in backend
+                // Record in backend via our API engine
                 await API.post('/tx/auto-buy', {
                     amount: autoAmount,
                     txHash: receipt.hash
@@ -68,7 +90,21 @@ const BuyToken = () => {
                 }, 3000);
             }
         } catch (err) {
-            setError(err.reason || err.message || 'Web3 Transaction Failed');
+            console.error("Web3 Purchase Error:", err);
+            
+            let errorMessage = 'Protocol Error: Node Communication Interrupted';
+            
+            if (err.message?.includes('user rejected')) {
+                errorMessage = 'Transaction Cancelled by User';
+            } else if (err.code === 'INSUFFICIENT_FUNDS') {
+                errorMessage = 'Insufficient ETH for transaction + gas';
+            } else if (err.code === 'CALL_EXCEPTION') {
+                errorMessage = 'Contract Revert: Ensure the protocol has ARTH liquidity and you are on the correct network.';
+            } else if (err.message) {
+                errorMessage = err.message;
+            }
+
+            setError(errorMessage);
         }
         setIsLoading(false);
     };

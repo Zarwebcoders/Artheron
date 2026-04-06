@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 const API = axios.create({
-    baseURL: 'https://artheron-backend.vercel.app/api',
+    baseURL: import.meta.env.MODE === 'development' 
+        ? 'http://localhost:5000/api' 
+        : 'https://artheron-backend.vercel.app/api',
 });
 
 // Add a request interceptor to include the JWT token
