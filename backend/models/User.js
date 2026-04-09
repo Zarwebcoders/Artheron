@@ -38,6 +38,12 @@ const UserSchema = new mongoose.Schema({
         default: 'pending'
     },
     walletAddress: String,
+    otp: String,
+    otpExpire: Date,
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
     createdAt: {

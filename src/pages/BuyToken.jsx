@@ -3,11 +3,11 @@ import { ethers } from 'ethers';
 import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import { useAuth } from '../context/AuthContext';
-import { 
-    ArrowDown, 
-    Wallet, 
-    ShieldCheck, 
-    TrendingUp, 
+import {
+    ArrowDown,
+    Wallet,
+    ShieldCheck,
+    TrendingUp,
     Zap,
     QrCode,
     Copy,
@@ -46,30 +46,31 @@ const BuyToken = () => {
         setError('');
 
         try {
-            // Calculate the value to send to the contract based on autoAmount
-            // Exchange Rate: 0.0001 ETH per 1 ARTH
-            const pricePerToken = 0.0001; 
-            const totalValueWei = ethers.parseEther((parseFloat(autoAmount) * pricePerToken).toString());
-            
-            // Diagnostics: Check user's native balance first
-            const userBalance = await provider.getBalance(account);
-            if (userBalance < totalValueWei) {
-                throw new Error(`Insufficient ETH: You need at least ${(parseFloat(autoAmount) * pricePerToken).toFixed(4)} ETH + gas.`);
+            if (!provider || !contract) {
+                console.error("Wallet objects missing:", { provider, contract });
+                throw new Error("Wallet not initialized. Please reconnect your wallet.");
             }
 
-            // Execute the contract call with a manual gas limit fallback if estimation fails
-            // This allows the user to see the actual revert reason in MetaMask
+            // Calculate the value to send to the contract based on autoAmount
+            // Exchange Rate: 0.0001 ETH per 1 ARTH
+            const pricePerToken = 0.0001;
+            const totalValue = (parseFloat(autoAmount) * pricePerToken).toFixed(18);
+            const totalValueWei = ethers.parseEther(totalValue);
+
+            console.log("Initiating Web3 Purchase:", { amount: autoAmount, value: totalValue });
+
+            // Execute the contract call
             let tx;
             try {
-                tx = await contract.buyTokens({ 
-                    value: totalValueWei 
+                tx = await contract.buyTokens({
+                    value: totalValueWei
                 });
             } catch (estError) {
-                console.warn("Gas estimation failed, attempting with manual limit...", estError);
-                // Fallback: Manually set gas limit to bypass estimation revert
-                tx = await contract.buyTokens({ 
+                console.warn("Gas estimation failed, bypassing with manual limit...", estError);
+                // Fallback: Manually set gas limit if estimation fails (common if contract reverts)
+                tx = await contract.buyTokens({
                     value: totalValueWei,
-                    gasLimit: 100000 // Standard gas limit for a simple buy transaction
+                    gasLimit: 120000
                 });
             }
 
@@ -81,7 +82,7 @@ const BuyToken = () => {
                     amount: autoAmount,
                     txHash: receipt.hash
                 });
-                
+
                 setIsSuccess(true);
                 updateBalances();
                 setTimeout(() => {
@@ -91,9 +92,9 @@ const BuyToken = () => {
             }
         } catch (err) {
             console.error("Web3 Purchase Error:", err);
-            
+
             let errorMessage = 'Protocol Error: Node Communication Interrupted';
-            
+
             if (err.message?.includes('user rejected')) {
                 errorMessage = 'Transaction Cancelled by User';
             } else if (err.code === 'INSUFFICIENT_FUNDS') {
@@ -119,7 +120,7 @@ const BuyToken = () => {
     const selectedMethod = paymentMethods.find(m => m.id === paymentMethod);
 
     useEffect(() => {
-        gsap.fromTo(".buy-card", 
+        gsap.fromTo(".buy-card",
             { y: 20, opacity: 0 },
             { y: 0, opacity: 1, stagger: 0.1, duration: 0.8, ease: "power2.out" }
         );
@@ -168,11 +169,11 @@ const BuyToken = () => {
 
     return (
         <div className="p-6 lg:p-10 space-y-10 relative">
-            
+
             {/* Success Overlay */}
             <AnimatePresence>
                 {isSuccess && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
@@ -218,7 +219,7 @@ const BuyToken = () => {
                         </div>
                     </div>
                 ) : (
-                    <button 
+                    <button
                         onClick={connectWallet}
                         disabled={isConnecting}
                         className="bg-white text-black px-8 py-3 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all flex items-center gap-2 group"
@@ -234,7 +235,7 @@ const BuyToken = () => {
                 <div className="lg:col-span-2 space-y-8">
                     <AnimatePresence mode="wait">
                         {step === 1 ? (
-                            <motion.div 
+                            <motion.div
                                 key="step1"
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -242,7 +243,7 @@ const BuyToken = () => {
                                 className="buy-card glass-panel p-10 rounded-[2.5rem] border border-white/5 bg-[#0A0319]/60 relative overflow-hidden"
                             >
                                 <div className="absolute top-0 right-0 w-64 h-64 bg-[#22d3ee] rounded-full mix-blend-screen filter blur-[100px] opacity-[0.05] pointer-events-none"></div>
-                                
+
                                 <div className="relative z-10 space-y-10">
                                     <div className="flex justify-between items-center mb-8">
                                         <div className="flex items-center gap-4">
@@ -256,11 +257,11 @@ const BuyToken = () => {
                                         </div>
 
                                         <div className="flex items-center p-1 bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-                                            <button 
+                                            <button
                                                 onClick={() => setBuyMode('manual')}
                                                 className={`px-4 py-2 text-[10px] uppercase tracking-widest font-bold transition-all ${buyMode === 'manual' ? 'bg-[#22d3ee] text-black shadow-lg rounded-lg' : 'text-gray-500 hover:text-white'}`}
                                             >Manual</button>
-                                            <button 
+                                            <button
                                                 onClick={() => setBuyMode('automatic')}
                                                 className={`px-4 py-2 text-[10px] uppercase tracking-widest font-bold transition-all ${buyMode === 'automatic' ? 'bg-[#7b3fe4] text-white shadow-lg rounded-lg' : 'text-gray-500 hover:text-white'}`}
                                             >Automatic</button>
@@ -271,15 +272,15 @@ const BuyToken = () => {
                                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                                             <div className="relative">
                                                 <label className="text-[10px] text-gray-400 uppercase tracking-[0.2em] font-bold mb-3 block">Token Amount (ARTH)</label>
-                                                <input 
-                                                    type="number" 
-                                                    placeholder="0.00" 
+                                                <input
+                                                    type="number"
+                                                    placeholder="0.00"
                                                     value={autoAmount}
                                                     onChange={(e) => setAutoAmount(e.target.value)}
                                                     className="w-full bg-[#050814]/50 border border-white/5 rounded-3xl py-10 px-8 text-5xl font-mono text-white outline-none focus:border-[#7b3fe4]/30 transition-all font-bold placeholder:text-gray-900"
                                                 />
                                             </div>
-                                            
+
                                             <div className="bg-[#7b3fe4]/5 border border-[#7b3fe4]/10 rounded-[2rem] p-8 space-y-4">
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Protocol Engine</span>
@@ -288,7 +289,7 @@ const BuyToken = () => {
                                                 <p className="text-xs text-gray-400 leading-relaxed font-light">By clicking "Initiate Web3 Purchase", you will execute a smart contract transaction. ARTH tokens will be minted directly to your connected wallet address.</p>
                                             </div>
 
-                                            <button 
+                                            <button
                                                 onClick={handleAutoBuy}
                                                 disabled={isLoading || !autoAmount || parseFloat(autoAmount) <= 0}
                                                 className="w-full py-6 rounded-3xl bg-gradient-to-r from-[#7b3fe4] to-[#22d3ee] text-white font-bold uppercase tracking-widest text-[10px] shadow-[0_0_30px_rgba(123,63,228,0.4)] hover:shadow-[0_0_50px_rgba(34,211,238,0.5)] transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-20 flex items-center justify-center gap-3 group"
@@ -301,9 +302,9 @@ const BuyToken = () => {
                                             <div className="space-y-6">
                                                 <div className="relative">
                                                     <label className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold mb-3 block">Amount in USD</label>
-                                                    <input 
-                                                        type="number" 
-                                                        placeholder="0.00" 
+                                                    <input
+                                                        type="number"
+                                                        placeholder="0.00"
                                                         value={amount}
                                                         onChange={(e) => setAmount(e.target.value)}
                                                         className="w-full bg-[#050814]/50 border border-white/5 rounded-3xl py-10 px-8 text-5xl font-mono text-white outline-none focus:border-[#22d3ee]/30 transition-all font-bold placeholder:text-gray-800"
@@ -330,7 +331,7 @@ const BuyToken = () => {
                                                 <label className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold block">Settlement Method</label>
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                     {paymentMethods.map((method) => (
-                                                        <button 
+                                                        <button
                                                             key={method.id}
                                                             onClick={() => setPaymentMethod(method.id)}
                                                             className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 group ${paymentMethod === method.id ? 'bg-white/10 border-white/20 shadow-lg' : 'bg-white/[0.02] border-white/5 opacity-50 hover:opacity-100'}`}
@@ -344,7 +345,7 @@ const BuyToken = () => {
                                                 </div>
                                             </div>
 
-                                            <button 
+                                            <button
                                                 onClick={handleProceed}
                                                 disabled={!amount || parseFloat(amount) <= 0}
                                                 className="w-full py-6 rounded-3xl bg-gradient-to-r from-[#22d3ee] to-[#7b3fe4] text-white font-bold uppercase tracking-widest text-xs shadow-[0_0_30px_rgba(34,211,238,0.3)] hover:shadow-[0_0_60px_rgba(123,63,228,0.5)] transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-30 disabled:hover:scale-100 flex items-center justify-center gap-3 group"
@@ -357,7 +358,7 @@ const BuyToken = () => {
                                 </div>
                             </motion.div>
                         ) : (
-                            <motion.div 
+                            <motion.div
                                 key="step2"
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -365,11 +366,11 @@ const BuyToken = () => {
                                 className="buy-card glass-panel p-10 rounded-[2.5rem] border border-white/5 bg-[#0A0319]/60 relative overflow-hidden"
                             >
                                 <div className="absolute top-0 right-0 w-64 h-64 bg-green-500 rounded-full mix-blend-screen filter blur-[100px] opacity-[0.05] pointer-events-none"></div>
-                                
+
                                 <div className="relative z-10 space-y-10">
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-4">
-                                            <button 
+                                            <button
                                                 onClick={() => setStep(1)}
                                                 className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-all"
                                             >
@@ -401,13 +402,13 @@ const BuyToken = () => {
                                             <div className="space-y-2">
                                                 <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold ml-1">Merchant Address</label>
                                                 <div className="relative group">
-                                                    <input 
-                                                        type="text" 
-                                                        readOnly 
+                                                    <input
+                                                        type="text"
+                                                        readOnly
                                                         value={selectedMethod.address}
                                                         className="w-full bg-[#07010f] border border-white/5 rounded-2xl py-4 pl-4 pr-12 text-xs font-mono text-white/70 outline-none"
                                                     />
-                                                    <button 
+                                                    <button
                                                         onClick={() => handleCopy(selectedMethod.address)}
                                                         className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 transition-all active:scale-95"
                                                     >
@@ -421,7 +422,7 @@ const BuyToken = () => {
                                                     <Info size={14} /> Network Notice
                                                 </div>
                                                 <p className="text-[10px] text-gray-400 leading-relaxed font-light">
-                                                    Send exactly <span className="text-white font-bold">${amount} {selectedMethod.name.split(' ')[0]}</span> via <span className="text-white font-bold">{selectedMethod.name.includes('BEP20') ? 'BNB Chain' : selectedMethod.name}</span>. 
+                                                    Send exactly <span className="text-white font-bold">${amount} {selectedMethod.name.split(' ')[0]}</span> via <span className="text-white font-bold">{selectedMethod.name.includes('BEP20') ? 'BNB Chain' : selectedMethod.name}</span>.
                                                     Incorrect network may lead to asset loss.
                                                 </p>
                                             </div>
@@ -455,14 +456,14 @@ const BuyToken = () => {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <input 
-                                                type="file" 
+                                            <input
+                                                type="file"
                                                 onChange={(e) => setProofFile(e.target.files[0])}
-                                                className="absolute inset-0 opacity-0 cursor-pointer" 
+                                                className="absolute inset-0 opacity-0 cursor-pointer"
                                             />
                                         </div>
 
-                                        <button 
+                                        <button
                                             onClick={handleSubmitProof}
                                             disabled={isLoading || !proofFile}
                                             className="w-full py-6 rounded-3xl bg-gradient-to-r from-green-500 to-[#22d3ee] text-white font-bold uppercase tracking-widest text-[10px] shadow-[0_0_30px_rgba(34,197,94,0.3)] transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-3 group disabled:opacity-30"
@@ -487,7 +488,7 @@ const BuyToken = () => {
                 <div className="space-y-8">
                     <div className="buy-card glass-panel p-8 rounded-[2.5rem] border border-white/5 bg-[#0A0319]/80 relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-[#22d3ee] rounded-full mix-blend-screen filter blur-[60px] opacity-[0.1]"></div>
-                        
+
                         <div className="relative z-10 flex flex-col gap-6">
                             <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#22d3ee]">
@@ -495,7 +496,7 @@ const BuyToken = () => {
                                 </div>
                                 <h3 className="text-sm font-bold uppercase tracking-tighter">Secured Node</h3>
                             </div>
-                            
+
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                                     <span>System Status</span>

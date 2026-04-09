@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
+const sendEmail = require('../utils/sendEmail');
 
 // @desc    Stake tokens
 // @route   POST /api/assets/stake
@@ -30,6 +31,26 @@ exports.stakeTokens = async (req, res) => {
             amount,
             status: 'completed'
         });
+
+        // Notify Admin
+        try {
+            await sendEmail({
+                email: process.env.ADMIN_EMAIL,
+                subject: 'Artheron Alert: New Stake Activity',
+                html: `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #7b3fe4; border-radius: 10px;">
+                        <h2 style="color: #7b3fe4;">New Stake Activity Detected</h2>
+                        <p><strong>Operator:</strong> ${user.email}</p>
+                        <p><strong>Amount:</strong> ${amount} ARTH</p>
+                        <p><strong>Timestamp:</strong> ${new Date().toLocaleString()}</p>
+                        <hr>
+                        <p style="font-size: 11px; color: #777;">Artheron Protocol Automated Monitoring System</p>
+                    </div>
+                `
+            });
+        } catch (mailErr) {
+            console.error("Admin Notify Error (Stake):", mailErr);
+        }
 
         res.status(200).json({
             success: true,
@@ -65,6 +86,26 @@ exports.claimEarnings = async (req, res) => {
             amount,
             status: 'completed'
         });
+
+        // Notify Admin
+        try {
+            await sendEmail({
+                email: process.env.ADMIN_EMAIL,
+                subject: 'Artheron Alert: Earnings Claimed',
+                html: `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #22C55E; border-radius: 10px;">
+                        <h3 style="color: #22C55E;">Earning Claim Detected</h3>
+                        <p><strong>Operator:</strong> ${user.email}</p>
+                        <p><strong>Amount:</strong> ${amount} ARTH</p>
+                        <p><strong>Status:</strong> Completed</p>
+                        <hr>
+                        <p style="font-size: 11px; color: #777;">Artheron Protocol Automated Monitoring System</p>
+                    </div>
+                `
+            });
+        } catch (mailErr) {
+            console.error("Admin Notify Error (Claim):", mailErr);
+        }
 
         res.status(200).json({
             success: true,
@@ -102,6 +143,27 @@ exports.sosExit = async (req, res) => {
             amount: stakedAmount,
             status: 'completed'
         });
+
+        // Notify Admin
+        try {
+            await sendEmail({
+                email: process.env.ADMIN_EMAIL,
+                subject: '⚠️ SECURITY ALERT: SOS Exit Triggered',
+                html: `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid #EF4444; border-radius: 10px; background: #FFF5F5;">
+                        <h2 style="color: #EF4444;">SOS EMERGENCY EXIT</h2>
+                        <p><strong>Operator:</strong> ${user.email}</p>
+                        <p><strong>Staked Asset:</strong> ${stakedAmount} ARTH</p>
+                        <p><strong>Net Return (After 20% Penalty):</strong> ${netReturn} ARTH</p>
+                        <p style="color: #666;">This action was initiated via the SOS emergency protocol.</p>
+                        <hr>
+                        <p style="font-size: 11px; color: #777;">Artheron Protocol Automated Security System</p>
+                    </div>
+                `
+            });
+        } catch (mailErr) {
+            console.error("Admin Notify Error (SOS):", mailErr);
+        }
 
         res.status(200).json({
             success: true,

@@ -62,6 +62,18 @@ export const AuthProvider = ({ children }) => {
         try {
             const res = await API.post('/auth/register', { name, email, password });
             if (res.data.success) {
+                // Success now means OTP was sent
+                return { success: true, message: res.data.message };
+            }
+        } catch (err) {
+            return { success: false, message: err.response?.data?.message || 'Registration failed' };
+        }
+    };
+
+    const verifyOTP = async (email, otp) => {
+        try {
+            const res = await API.post('/auth/verify-otp', { email, otp });
+            if (res.data.success) {
                 const { token, user: userData } = res.data;
                 localStorage.setItem('artheron_token', token);
                 setUser(userData);
@@ -69,7 +81,16 @@ export const AuthProvider = ({ children }) => {
                 return { success: true };
             }
         } catch (err) {
-            return { success: false, message: err.response?.data?.message || 'Registration failed' };
+            return { success: false, message: err.response?.data?.message || 'Verification failed' };
+        }
+    };
+
+    const resendOTP = async (email) => {
+        try {
+            const res = await API.post('/auth/resend-otp', { email });
+            return { success: res.data.success, message: res.data.message };
+        } catch (err) {
+            return { success: false, message: err.response?.data?.message || 'Resend failed' };
         }
     };
 
@@ -104,6 +125,8 @@ export const AuthProvider = ({ children }) => {
             balances, 
             login, 
             register,
+            verifyOTP,
+            resendOTP,
             logout, 
             isAdmin, 
             loading,

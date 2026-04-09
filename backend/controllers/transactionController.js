@@ -1,5 +1,6 @@
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
+const sendEmail = require('../utils/sendEmail');
 
 // @desc    Purchase tokens (Buy Request)
 // @route   POST /api/tx/buy
@@ -24,6 +25,29 @@ exports.buyTokens = async (req, res) => {
             proofUrl: req.file.path,
             status: 'pending'
         });
+
+        // Notify Admin
+        try {
+            const user = await User.findById(req.user.id);
+            await sendEmail({
+                email: process.env.ADMIN_EMAIL,
+                subject: '🔔 New Buy Request Pending',
+                html: `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #22d3ee; border-radius: 10px;">
+                        <h2 style="color: #22d3ee;">Manual Buy Request</h2>
+                        <p><strong>User:</strong> ${user.email}</p>
+                        <p><strong>Asset Amount:</strong> ${amount} ARTH</p>
+                        <p><strong>Payment Method:</strong> ${method}</p>
+                        <p><strong>Status:</strong> Pending Verification</p>
+                        <p style="color: #666;">Please log in to the Admin Panel to verify the payment proof.</p>
+                        <hr>
+                        <p style="font-size: 11px; color: #777;">Artheron Protocol Automated Desk</p>
+                    </div>
+                `
+            });
+        } catch (mailErr) {
+            console.error("Admin Notify Error (Buy):", mailErr);
+        }
 
         res.status(201).json({
             success: true,
@@ -59,6 +83,27 @@ exports.recordAutoBuy = async (req, res) => {
         const user = await User.findById(req.user.id);
         user.balances.tokenBalance += parseFloat(amount);
         await user.save();
+
+        // Notify Admin
+        try {
+            await sendEmail({
+                email: process.env.ADMIN_EMAIL,
+                subject: '⚡ Artheron Alert: Web3 Purchase Success',
+                html: `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #7b3fe4; border-radius: 10px; background: #fafafa;">
+                        <h2 style="color: #7b3fe4;">Automatic Web3 Purchase</h2>
+                        <p><strong>Operator:</strong> ${user.email}</p>
+                        <p><strong>Amount:</strong> ${amount} ARTH</p>
+                        <p><strong>Status:</strong> Automatically Verified On-Chain</p>
+                        <p><strong>Tx Hash:</strong> <span style="font-family: monospace; font-size: 11px;">${txHash}</span></p>
+                        <hr>
+                        <p style="font-size: 11px; color: #777;">Artheron Protocol Automated Monitoring System</p>
+                    </div>
+                `
+            });
+        } catch (mailErr) {
+            console.error("Admin Notify Error (AutoBuy):", mailErr);
+        }
 
         res.status(201).json({
             success: true,
@@ -105,6 +150,27 @@ exports.withdrawTokens = async (req, res) => {
             txHash: walletAddress, // Temporarily store address as hash until processed
             status: 'pending'
         });
+
+        // Notify Admin
+        try {
+            await sendEmail({
+                email: process.env.ADMIN_EMAIL,
+                subject: '🚨 URGENT: New Withdrawal Request',
+                html: `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #f97316; border-radius: 10px;">
+                        <h2 style="color: #f97316;">Withdrawal Request Pending</h2>
+                        <p><strong>Operator:</strong> ${user.email}</p>
+                        <p><strong>Amount:</strong> ${amount} ${currency}</p>
+                        <p><strong>Destination Wallet:</strong> <span style="font-family: monospace;">${walletAddress}</span></p>
+                        <p><strong>Action Required:</strong> Please manually settle this transaction after security checks.</p>
+                        <hr>
+                        <p style="font-size: 11px; color: #777;">Artheron Protocol Automated Security System</p>
+                    </div>
+                `
+            });
+        } catch (mailErr) {
+            console.error("Admin Notify Error (Withdraw):", mailErr);
+        }
 
         res.status(201).json({
             success: true,

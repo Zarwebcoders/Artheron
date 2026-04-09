@@ -21,10 +21,12 @@ const Register = () => {
         password: '',
         confirmPassword: ''
     });
+    const [otp, setOtp] = useState('');
+    const [step, setStep] = useState(1); // 1: Details, 2: OTP, 3: Success
     const [error, setError] = useState('');
-    const [isSuccess, setIsSuccess] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const { login, register } = useAuth();
+    const [timer, setTimer] = useState(0);
+    const { register, verifyOTP, resendOTP } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -32,7 +34,15 @@ const Register = () => {
             { y: 30, opacity: 0, scale: 0.98 },
             { y: 0, opacity: 1, scale: 1, duration: 1, ease: "power3.out" }
         );
-    }, []);
+    }, [step]);
+
+    useEffect(() => {
+        let interval;
+        if (timer > 0) {
+            interval = setInterval(() => setTimer(prev => prev - 1), 1000);
+        }
+        return () => clearInterval(interval);
+    }, [timer]);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -52,10 +62,37 @@ const Register = () => {
         const result = await register(name, email, password);
         
         if (result.success) {
-            setIsSuccess(true);
-            setTimeout(() => {
-                navigate('/dashboard');
-            }, 2000);
+            setStep(2);
+            setTimer(60);
+        } else {
+            setError(result.message);
+        }
+        setIsLoading(false);
+    };
+
+    const handleVerify = async (e) => {
+        e.preventDefault();
+        if (otp.length !== 6) return setError('Please enter a 6-digit code.');
+
+        setIsLoading(true);
+        setError('');
+
+        const result = await verifyOTP(formData.email, otp);
+        if (result.success) {
+            setStep(3);
+            setTimeout(() => navigate('/dashboard'), 2000);
+        } else {
+            setError(result.message);
+        }
+        setIsLoading(false);
+    };
+
+    const handleResend = async () => {
+        if (timer > 0) return;
+        setIsLoading(true);
+        const result = await resendOTP(formData.email);
+        if (result.success) {
+            setTimer(60);
         } else {
             setError(result.message);
         }
@@ -73,11 +110,12 @@ const Register = () => {
                 <div className="register-card w-full max-w-md glass-panel p-10 rounded-[2.5rem] border border-white/10 relative overflow-hidden bg-[#0A0319]/80 backdrop-blur-xl">
                     
                     <AnimatePresence mode="wait">
-                        {!isSuccess ? (
+                        {step === 1 && (
                             <motion.div 
-                                key="form"
-                                initial={{ opacity: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
+                                key="details"
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
                             >
                                 <div className="text-center mb-10">
                                     <div className="w-16 h-16 mx-auto rounded-2xl bg-[#22d3ee]/10 border border-[#22d3ee]/20 flex items-center justify-center mb-6 glow-blue">
@@ -174,7 +212,74 @@ const Register = () => {
                                     Already have an account? <Link to="/login" className="text-[#22d3ee] font-bold hover:underline">Sign in</Link>
                                 </p>
                             </motion.div>
-                        ) : (
+                        )}
+
+                        {step === 2 && (
+                            <motion.div 
+                                key="otp"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                className="text-center"
+                            >
+                                <div className="w-16 h-16 mx-auto rounded-2xl bg-[#7b3fe4]/10 border border-[#7b3fe4]/20 flex items-center justify-center mb-8 glow-purple">
+                                    <Mail size={32} className="text-[#7b3fe4]" />
+                                </div>
+                                <h1 className="text-3xl font-bold font-heading mb-4">Verify <span className="text-gradient">Identity</span></h1>
+                                <p className="text-gray-400 text-sm font-light mb-10 leading-relaxed px-6">
+                                    We've sent a 6-digit initialization code to <span className="text-white font-bold">{formData.email}</span>
+                                </p>
+
+                                <form onSubmit={handleVerify} className="space-y-8">
+                                    <div className="flex justify-center gap-3">
+                                        <input 
+                                            type="text" 
+                                            maxLength="6"
+                                            placeholder="000000"
+                                            value={otp}
+                                            onChange={(e) => setOtp(e.target.value)}
+                                            className="w-full bg-[#050814] border border-white/10 rounded-2xl py-6 text-center text-4xl font-mono tracking-[0.5em] text-[#22d3ee] outline-none focus:border-[#22d3ee]/50 transition-all font-bold placeholder:text-gray-900" 
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    {error && (
+                                        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 text-red-500 text-[10px] uppercase font-bold tracking-widest bg-red-500/5 p-4 rounded-xl border border-red-500/10">
+                                            <AlertCircle size={14} /> {error}
+                                        </motion.div>
+                                    )}
+
+                                    <button 
+                                        type="submit" 
+                                        disabled={isLoading}
+                                        className="w-full py-5 rounded-2xl bg-[#22d3ee] text-[#0A0319] font-bold uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(34,211,238,0.3)] hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+                                    >
+                                        {isLoading ? 'Processing...' : 'Verify & Launch'}
+                                    </button>
+
+                                    <div className="flex flex-col gap-4 items-center">
+                                        <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">Didn't receive code?</p>
+                                        <button 
+                                            type="button"
+                                            onClick={handleResend}
+                                            disabled={timer > 0 || isLoading}
+                                            className={`text-xs font-bold uppercase tracking-widest transition-all ${timer > 0 ? 'text-gray-700' : 'text-[#7b3fe4] hover:text-[#22d3ee]'}`}
+                                        >
+                                            {timer > 0 ? `Resend in ${timer}s` : 'Resend Protocol Code'}
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setStep(1)}
+                                            className="text-xs text-gray-600 hover:text-white transition-colors"
+                                        >
+                                            Change Email
+                                        </button>
+                                    </div>
+                                </form>
+                            </motion.div>
+                        )}
+
+                        {step === 3 && (
                             <motion.div 
                                 key="success"
                                 initial={{ opacity: 0, scale: 0.9 }}
@@ -184,7 +289,7 @@ const Register = () => {
                                 <div className="w-20 h-20 mx-auto rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-8 shadow-[0_0_30px_rgba(34,197,94,0.2)]">
                                     <CheckCircle2 size={40} className="text-green-500" />
                                 </div>
-                                <h2 className="text-3xl font-bold font-heading mb-4 text-white">Registration <span className="text-green-500">Successful</span></h2>
+                                <h2 className="text-3xl font-bold font-heading mb-4 text-white">Identity <span className="text-green-500">Verified</span></h2>
                                 <p className="text-gray-400 mb-8 font-light">Welcome to the future of staking. Redirecting you to your secure dashboard...</p>
                                 <div className="flex justify-center">
                                     <div className="flex gap-1">
