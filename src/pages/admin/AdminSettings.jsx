@@ -11,7 +11,7 @@ import {
 import API from '../../api/axios';
 
 const AdminSettings = () => {
-    const [tokenPrice, setTokenPrice] = useState('0.045');
+    const [tokenPrice, setTokenPrice] = useState('0.010417');
     const [isProcessing, setIsProcessing] = useState(false);
 
     const handleDistributeROI = async () => {

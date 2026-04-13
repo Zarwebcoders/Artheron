@@ -63,7 +63,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             >
                 <div className="h-full flex flex-col p-6">
                     {/* Logo Section */}
-                    <div className="flex items-center gap-3 mb-10 px-2 cursor-pointer" onClick={() => navigate('/')}>
+                    <div className="flex items-center gap-3 mb-10 px-2 cursor-pointer" onClick={() => navigate(isAdmin ? '/admin/dashboard' : '/dashboard')}>
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7b3fe4] to-[#22d3ee] flex items-center justify-center shadow-[0_0_20px_rgba(123,63,228,0.3)]">
                             <span className="font-bold text-white">A</span>
                         </div>

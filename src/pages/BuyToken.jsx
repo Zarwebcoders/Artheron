@@ -36,7 +36,7 @@ const BuyToken = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const tokenPrice = 0.045; // 1 ARTH = $0.045
+    const tokenPrice = 0.010417; // 1 ARTH = $0.010417 ($1 = 96 ARTH)
 
     const handleAutoBuy = async () => {
         if (!account) return connectWallet();
@@ -51,10 +51,13 @@ const BuyToken = () => {
                 throw new Error("Wallet not initialized. Please reconnect your wallet.");
             }
 
-            // Calculate the value to send to the contract based on autoAmount
-            // Exchange Rate: 0.0001 ETH per 1 ARTH
-            const pricePerToken = 0.0001;
-            const totalValue = (parseFloat(autoAmount) * pricePerToken).toFixed(18);
+            // Calculate the value to send to the contract based on autoAmount (USD)
+            // autoAmount is now USD, so we convert to ARTH tokens first
+            const tokenAmountValue = parseFloat(autoAmount) / tokenPrice;
+            
+            // Exchange Rate: 0.0001 ETH/BNB per 1 ARTH
+            const pricePerToken = 0.0001; 
+            const totalValue = (tokenAmountValue * pricePerToken).toFixed(18);
             const totalValueWei = ethers.parseEther(totalValue);
 
             console.log("Initiating Web3 Purchase:", { amount: autoAmount, value: totalValue });
@@ -79,7 +82,7 @@ const BuyToken = () => {
             if (receipt.status === 1) {
                 // Record in backend via our API engine
                 await API.post('/tx/auto-buy', {
-                    amount: autoAmount,
+                    amount: (parseFloat(autoAmount) / tokenPrice).toFixed(0), // Record as ARTH tokens
                     txHash: receipt.hash
                 });
 
@@ -197,7 +200,7 @@ const BuyToken = () => {
                         LIQUIDITY <span className="text-gradient">GATEWAY</span>
                     </h1>
                     <p className="text-[10px] text-gray-500 font-mono tracking-widest uppercase bg-white/5 py-1 px-3 rounded-full border border-white/5 inline-block">
-                        Current Price: $0.045 / ARTH
+                        Current Price: $0.0104 / ARTH
                     </p>
                 </motion.div>
 
@@ -270,15 +273,34 @@ const BuyToken = () => {
 
                                     {buyMode === 'automatic' ? (
                                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                                            <div className="relative">
-                                                <label className="text-[10px] text-gray-400 uppercase tracking-[0.2em] font-bold mb-3 block">Token Amount (ARTH)</label>
-                                                <input
-                                                    type="number"
-                                                    placeholder="0.00"
-                                                    value={autoAmount}
-                                                    onChange={(e) => setAutoAmount(e.target.value)}
-                                                    className="w-full bg-[#050814]/50 border border-white/5 rounded-3xl py-10 px-8 text-5xl font-mono text-white outline-none focus:border-[#7b3fe4]/30 transition-all font-bold placeholder:text-gray-900"
-                                                />
+                                            <div className="space-y-6">
+                                                <div className="relative">
+                                                    <label className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold mb-3 block">Amount in USD</label>
+                                                    <input
+                                                        type="number"
+                                                        placeholder="0.00"
+                                                        value={autoAmount}
+                                                        onChange={(e) => setAutoAmount(e.target.value)}
+                                                        onWheel={(e) => e.target.blur()}
+                                                        className="w-full bg-[#050814]/50 border border-white/5 rounded-3xl py-10 px-8 text-5xl font-mono text-white outline-none focus:border-[#7b3fe4]/30 transition-all font-bold placeholder:text-gray-900"
+                                                    />
+                                                    <div className="absolute right-8 bottom-8 flex items-center gap-2 text-[#7b3fe4] font-bold text-sm bg-[#7b3fe4]/10 px-3 py-1 rounded-lg border border-[#7b3fe4]/20">
+                                                        USD
+                                                    </div>
+                                                </div>
+
+                                                <div className="bg-white/5 border border-white/5 rounded-3xl p-8 flex justify-between items-center group hover:bg-white/[0.08] transition-all">
+                                                    <div>
+                                                        <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Estimated Receipt</p>
+                                                        <h3 className="text-4xl font-bold font-mono text-white">
+                                                            {autoAmount ? (parseFloat(autoAmount) / tokenPrice).toFixed(0).toLocaleString() : '0'}
+                                                            <span className="text-sm text-gray-600 font-light ml-3">ARTH</span>
+                                                        </h3>
+                                                    </div>
+                                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#7b3fe4] to-[#22d3ee] p-[1px]">
+                                                        <div className="w-full h-full bg-[#0A0319] rounded-2xl flex items-center justify-center text-white font-bold text-xs uppercase tracking-tighter">PROTO</div>
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <div className="bg-[#7b3fe4]/5 border border-[#7b3fe4]/10 rounded-[2rem] p-8 space-y-4">
@@ -307,6 +329,7 @@ const BuyToken = () => {
                                                         placeholder="0.00"
                                                         value={amount}
                                                         onChange={(e) => setAmount(e.target.value)}
+                                                        onWheel={(e) => e.target.blur()}
                                                         className="w-full bg-[#050814]/50 border border-white/5 rounded-3xl py-10 px-8 text-5xl font-mono text-white outline-none focus:border-[#22d3ee]/30 transition-all font-bold placeholder:text-gray-800"
                                                     />
                                                     <div className="absolute right-8 bottom-8 flex items-center gap-2 text-[#22d3ee] font-bold text-sm bg-[#22d3ee]/10 px-3 py-1 rounded-lg border border-[#22d3ee]/20">
