@@ -59,17 +59,10 @@ const History = () => {
     }, [isLoading, filteredTransactions]);
 
     return (
-        <div className="p-6 lg:p-10 space-y-10">
+        <div className="p-6 lg:p-8 space-y-10">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-                    <h1 className="text-3xl font-bold font-heading mb-1 uppercase tracking-tight">
-                        TRANSACTION <span className="text-gradient">LEDGER</span>
-                    </h1>
-                    <p className="text-[10px] text-gray-500 font-mono tracking-widest uppercase bg-white/5 py-1 px-3 rounded-full border border-white/5 inline-block">
-                        Immutable Protocol History
-                    </p>
-                </motion.div>
+                <div className="h-2"></div>
 
                 <div className="flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
                     {['all', 'stake', 'earnings'].map((f) => (
@@ -84,11 +77,11 @@ const History = () => {
                 </div>
             </div>
 
-            <div className="glass-panel rounded-[2.5rem] border border-white/5 bg-[#0A0319]/50 overflow-hidden">
-                <div className="p-8 border-b border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="glass-panel rounded-[1rem] border border-white/50! bg-[#0A0319]/50 overflow-hidden">
+                <div className="p-3 border-b border-white/50! px-8 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="relative w-full md:max-w-xs">
-                        <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
-                        <input type="text" placeholder="TX Hash Search..." className="w-full bg-[#050814] border border-white/10 rounded-xl py-3 pl-10 pr-4 text-[10px] font-mono outline-none focus:border-[#22d3ee]/30" />
+                        <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input type="text" placeholder="TX Hash Search..." className="w-full bg-[#050814] border border-white/50 rounded-xl py-3 pl-10 pr-4 text-[12px] font-mono outline-none focus:border-[#22d3ee]/30" />
                     </div>
                     <div className="flex items-center gap-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                         <Filter size={14} /> Sort By: <span className="text-white cursor-pointer hover:underline">Newest</span>
@@ -97,13 +90,13 @@ const History = () => {
 
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                        <thead className="bg-white/[0.02] border-b border-white/5">
+                        <thead className="bg-white/[0.02] border-b border-white/50!">
                             <tr>
-                                <th className="px-8 py-5 text-[10px] font-bold text-gray-600 uppercase tracking-widest">Type</th>
-                                <th className="px-8 py-5 text-[10px] font-bold text-gray-600 uppercase tracking-widest">Amount</th>
-                                <th className="px-8 py-5 text-[10px] font-bold text-gray-600 uppercase tracking-widest">Method / Source</th>
-                                <th className="px-8 py-5 text-[10px] font-bold text-gray-600 uppercase tracking-widest">Timestamp</th>
-                                <th className="px-8 py-5 text-[10px] font-bold text-gray-600 uppercase tracking-widest">Status</th>
+                                <th className="px-8 py-5 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Type</th>
+                                <th className="px-8 py-5 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Amount</th>
+                                <th className="px-8 py-5 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Method / Source</th>
+                                <th className="px-8 py-5 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Timestamp</th>
+                                <th className="px-8 py-5 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Status</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/[0.02]">
@@ -157,7 +150,7 @@ const History = () => {
                     </table>
                 </div>
 
-                <div className="p-8 bg-white/[0.01] border-t border-white/5 text-center">
+                <div className="p-6 bg-white/[0.01] border-t border-white/50! text-center">
                     <p className="text-[10px] text-gray-700 uppercase tracking-[0.3em] font-bold">End of Transmission Ledger</p>
                 </div>
             </div>

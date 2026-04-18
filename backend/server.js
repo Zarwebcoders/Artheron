@@ -59,9 +59,21 @@ app.use('/api/admin', admin);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(
+const server = app.listen(
     PORT,
     console.log(
         `Server running in ${process.env.NODE_ENV} mode on port ${PORT}`
     )
 );
+
+// --- Automatic Protocol Heartbeat ---
+const { distributeROI } = require('./controllers/assetController');
+const DISTRIBUTION_INTERVAL = 24 * 60 * 60 * 1000; // 24 Hours
+
+setInterval(async () => {
+    console.log("--- Executing Automatic ROI Distribution ---");
+    const count = await distributeROI();
+    console.log(`--- Distributed to ${count} operators ---`);
+}, DISTRIBUTION_INTERVAL);
+
+// For testing: distributeROI(); // Uncomment to run on startup

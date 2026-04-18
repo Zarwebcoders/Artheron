@@ -17,12 +17,14 @@ import gsap from 'gsap';
 import Navbar from '../components/Navbar';
 
 const Login = () => {
-    const [email, setEmail] = useState('');
+    const [accountNumber, setAccountNumber] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [isLoggingIn, setIsLoggingIn] = useState(false);
-    const { login } = useAuth();
+    const [step, setStep] = useState('login'); // 'login' or 'verify'
+    const [otp, setOtp] = useState('');
+    const { login, verify2FA } = useAuth();
     const { account, connectWallet } = useWallet();
     const navigate = useNavigate();
     const formRef = useRef(null);
@@ -37,12 +39,35 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!email || !password) return setError('Please fill in all fields.');
+        if (!accountNumber || !password) return setError('Please fill in all fields.');
         
         setIsLoggingIn(true);
         setError('');
 
-        const result = await login(email, password);
+        const result = await login(accountNumber, password);
+        
+        if (result.success) {
+            if (result.require2FA) {
+                setStep('verify');
+            } else if (result.role === 'admin') {
+                navigate('/admin');
+            } else {
+                navigate('/dashboard');
+            }
+        } else {
+            setError(result.message);
+        }
+        setIsLoggingIn(false);
+    };
+
+    const handleVerify2FA = async (e) => {
+        e.preventDefault();
+        if (!otp) return setError('Please enter the verification code.');
+        
+        setIsLoggingIn(true);
+        setError('');
+
+        const result = await verify2FA(accountNumber, otp);
         
         if (result.success) {
             if (result.role === 'admin') {
@@ -62,7 +87,7 @@ const Login = () => {
             setIsLoggingIn(true);
             setTimeout(() => {
                 login({ 
-                    email: `${connected.substring(0, 6)}...${connected.slice(-4)}@wallet.io`, 
+                    accountNumber: 'WALLET_USER', 
                     role: 'user', 
                     id: connected,
                     wallet: connected 
@@ -93,63 +118,132 @@ const Login = () => {
                         <p className="text-gray-500 text-sm font-light">Access your Artheron PRO console</p>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Email Address</label>
-                            <div className="relative group">
-                                <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#7b3fe4] transition-colors" />
-                                <input 
-                                    type="email" 
-                                    placeholder="name@example.com" 
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-[#050814] border border-white/5 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-[#7b3fe4]/50 transition-all font-light placeholder:text-gray-700" 
-                                />
-                            </div>
-                        </div>
+                    <AnimatePresence mode="wait">
+                        {step === 'login' ? (
+                            <motion.form 
+                                key="login-form"
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                                onSubmit={handleSubmit} 
+                                className="space-y-6"
+                            >
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Account Number</label>
+                                    <div className="relative group">
+                                        <ShieldCheck size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#7b3fe4] transition-colors" />
+                                        <input 
+                                            type="text" 
+                                            placeholder="Enter your numeric ID" 
+                                            value={accountNumber}
+                                            onChange={(e) => setAccountNumber(e.target.value)}
+                                            className="w-full bg-[#050814] border border-white/5 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-[#7b3fe4]/50 transition-all font-light placeholder:text-gray-700 font-mono text-sm" 
+                                        />
+                                    </div>
+                                </div>
 
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Secure Password</label>
-                            <div className="relative group">
-                                <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#7b3fe4] transition-colors" />
-                                <input 
-                                    type={showPassword ? 'text' : 'password'} 
-                                    placeholder="••••••••" 
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-[#050814] border border-white/5 rounded-2xl py-4 pl-12 pr-12 outline-none focus:border-[#7b3fe4]/50 transition-all font-light placeholder:text-gray-700" 
-                                />
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between items-center ml-1">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Secure Password</label>
+                                        <Link to="/forgot-password" size={14} className="text-[10px] text-[#a855f7] hover:underline font-bold uppercase tracking-widest opacity-70">Forgot?</Link>
+                                    </div>
+                                    <div className="relative group">
+                                        <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#7b3fe4] transition-colors" />
+                                        <input 
+                                            type={showPassword ? 'text' : 'password'} 
+                                            placeholder="••••••••" 
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="w-full bg-[#050814] border border-white/5 rounded-2xl py-4 pl-12 pr-12 outline-none focus:border-[#7b3fe4]/50 transition-all font-light placeholder:text-gray-700 text-sm" 
+                                        />
+                                        <button 
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-700 hover:text-gray-500 transition-colors"
+                                        >
+                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {error && (
+                                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 text-red-400 text-xs bg-red-500/5 p-3 rounded-lg border border-red-500/10">
+                                        <AlertCircle size={14} /> {error}
+                                    </motion.div>
+                                )}
+
                                 <button 
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-700 hover:text-gray-500 transition-colors"
+                                    type="submit" 
+                                    disabled={isLoggingIn}
+                                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#7b3fe4] to-[#a855f7] text-white font-bold uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(123,63,228,0.3)] hover:shadow-[0_0_40px_rgba(34,211,238,0.4)] hover:scale-[1.02] active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 group"
                                 >
-                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    {isLoggingIn ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    ) : (
+                                        <>
+                                            <span>Continue to Dashboard</span>
+                                            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                        </>
+                                    )}
                                 </button>
-                            </div>
-                        </div>
+                            </motion.form>
+                        ) : (
+                            <motion.form 
+                                key="verify-form"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                onSubmit={handleVerify2FA} 
+                                className="space-y-8"
+                            >
+                                <div className="text-center space-y-2">
+                                     <h3 className="text-lg font-bold text-white uppercase tracking-tighter">2FA Verification</h3>
+                                     <p className="text-[10px] text-gray-500 uppercase tracking-widest">Enter the 6-digit code sent to your email</p>
+                                </div>
 
-                        {error && (
-                            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 text-red-400 text-xs bg-red-500/5 p-3 rounded-lg border border-red-500/10">
-                                <AlertCircle size={14} /> {error}
-                            </motion.div>
+                                <div className="space-y-4">
+                                    <div className="relative group">
+                                        <input 
+                                            type="text" 
+                                            maxLength="6"
+                                            placeholder="000000" 
+                                            value={otp}
+                                            onChange={(e) => setOtp(e.target.value)}
+                                            className="w-full bg-[#050814] border border-white/5 rounded-2xl py-6 text-center text-3xl font-mono tracking-[0.5em] text-[#22d3ee] outline-none focus:border-[#22d3ee]/50 transition-all placeholder:text-gray-900" 
+                                        />
+                                    </div>
+                                    
+                                    {error && (
+                                        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 text-red-400 text-xs bg-red-500/5 p-3 rounded-lg border border-red-500/10 justify-center">
+                                            <AlertCircle size={14} /> {error}
+                                        </motion.div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-4">
+                                    <button 
+                                        type="submit" 
+                                        disabled={isLoggingIn}
+                                        className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#22d3ee] to-[#7b3fe4] text-white font-bold uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_40px_rgba(34,211,238,0.3)] hover:scale-[1.02] active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        {isLoggingIn ? (
+                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                        ) : (
+                                            <span>Authorize Login</span>
+                                        )}
+                                    </button>
+                                    
+                                    <button 
+                                        type="button"
+                                        onClick={() => setStep('login')}
+                                        className="w-full py-3 text-[10px] text-gray-500 uppercase tracking-widest font-bold hover:text-white transition-colors"
+                                    >
+                                        Back to Login
+                                    </button>
+                                </div>
+                            </motion.form>
                         )}
-
-                        <button 
-                            type="submit" 
-                            disabled={isLoggingIn}
-                            className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#7b3fe4] to-[#a855f7] text-white font-bold uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(123,63,228,0.3)] hover:shadow-[0_0_40px_rgba(34,211,238,0.4)] hover:scale-[1.02] active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 group"
-                        >
-                            {isLoggingIn ? (
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                            ) : (
-                                <>
-                                    <span>Continue to Dashboard</span>
-                                    <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                                </>
-                            )}
-                        </button>
-                    </form>
+                    </AnimatePresence>
 
                     <div className="relative my-10">
                         <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>

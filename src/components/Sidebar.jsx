@@ -1,13 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { 
-    LayoutDashboard, 
-    Coins, 
-    Lock, 
-    History, 
-    User, 
-    ShieldCheck, 
-    LogOut, 
+import {
+    LayoutDashboard,
+    Coins,
+    Lock,
+    History,
+    User,
+    ShieldCheck,
+    LogOut,
     ChevronRight,
     ArrowUpRight,
     Menu,
@@ -31,7 +31,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         navigate('/');
     };
 
-    const menuItems = isAdmin 
+    const menuItems = isAdmin
         ? [
             { name: 'Admin Dashboard', path: '/admin/dashboard', icon: <ShieldCheck size={20} className="text-[#EF4444]" /> },
             { name: 'User Database', path: '/admin/users', icon: <Users size={20} className="text-[#a855f7]" /> },
@@ -52,22 +52,22 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     return (
         <>
             {/* Mobile Overlay */}
-            <div 
+            <div
                 className={`fixed inset-0 bg-[#07010f]/80 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                 onClick={() => setIsOpen(false)}
             />
 
-            <aside 
+            <aside
                 ref={sidebarRef}
-                className={`fixed top-0 left-0 h-full w-72 bg-[#0A0319] border-r border-white/5 z-50 transition-transform duration-300 lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                className={`fixed top-0 left-0 h-full w-72 bg-[#0A0319] border-r border-white/40 z-50 transition-transform duration-300 lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
             >
-                <div className="h-full flex flex-col p-6">
+                <div className="h-full flex flex-col p-4">
                     {/* Logo Section */}
                     <div className="flex items-center gap-3 mb-10 px-2 cursor-pointer" onClick={() => navigate(isAdmin ? '/admin/dashboard' : '/dashboard')}>
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7b3fe4] to-[#22d3ee] flex items-center justify-center shadow-[0_0_20px_rgba(123,63,228,0.3)]">
                             <span className="font-bold text-white">A</span>
                         </div>
-                        <span className="text-xl font-bold font-heading tracking-tight">ARTHERON <span className="text-[#22d3ee] text-[10px] align-top ml-1">PRO</span></span>
+                        <span className="text-xl font-bold font-heading tracking-tight">ARTHERON</span>
                     </div>
 
                     {/* Navigation */}
@@ -79,8 +79,8 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                                 onClick={() => setIsOpen(false)}
                                 className={({ isActive }) => `
                                     group flex items-center justify-between p-4 rounded-2xl transition-all duration-300
-                                    ${isActive 
-                                        ? 'bg-[#7b3fe4]/10 border border-[#7b3fe4]/30 text-white shadow-[0_0_20px_rgba(123,63,228,0.1)]' 
+                                    ${isActive
+                                        ? 'bg-[#7b3fe4]/10 border border-[#7b3fe4]/30 text-white shadow-[0_0_20px_rgba(123,63,228,0.1)]'
                                         : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent'
                                     }
                                 `}
@@ -110,7 +110,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                             </div>
                         </div>
 
-                        <button 
+                        <button
                             onClick={handleLogout}
                             className="w-full flex items-center gap-4 p-4 text-gray-500 hover:text-[#EF4444] hover:bg-red-500/5 rounded-2xl transition-all duration-300 border border-transparent hover:border-red-500/20"
                         >

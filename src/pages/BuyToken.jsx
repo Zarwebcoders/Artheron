@@ -1,33 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { ethers } from 'ethers';
 import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import { useAuth } from '../context/AuthContext';
 import {
-    ArrowDown,
-    Wallet,
-    ShieldCheck,
     TrendingUp,
+    Wallet,
+    ArrowRight,
+    ShieldCheck,
+    RefreshCw,
     Zap,
     QrCode,
-    Copy,
-    Upload,
-    CheckCircle2,
     Info,
-    CreditCard,
-    ArrowRight,
-    RefreshCw
+    Copy,
+    CheckCircle2,
+    Upload,
+    CreditCard
 } from 'lucide-react';
-import { useWallet } from '../context/WalletContext';
 
 import API from '../api/axios';
 
 const BuyToken = () => {
     const { balances, updateBalances } = useAuth();
-    const { account, balance, isConnecting, connectWallet, contract, provider } = useWallet();
-    const [buyMode, setBuyMode] = useState('manual');
     const [amount, setAmount] = useState('');
-    const [autoAmount, setAutoAmount] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('usdt');
     const [step, setStep] = useState(1);
     const [isSuccess, setIsSuccess] = useState(false);
@@ -35,83 +29,9 @@ const BuyToken = () => {
     const [proofFile, setProofFile] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [marketStats, setMarketStats] = useState({ buyVolumeUSD: 4280000, totalMinted: 82500000 });
 
     const tokenPrice = 0.010417; // 1 ARTH = $0.010417 ($1 = 96 ARTH)
-
-    const handleAutoBuy = async () => {
-        if (!account) return connectWallet();
-        if (!autoAmount || parseFloat(autoAmount) <= 0) return;
-
-        setIsLoading(true);
-        setError('');
-
-        try {
-            if (!provider || !contract) {
-                console.error("Wallet objects missing:", { provider, contract });
-                throw new Error("Wallet not initialized. Please reconnect your wallet.");
-            }
-
-            // Calculate the value to send to the contract based on autoAmount (USD)
-            // autoAmount is now USD, so we convert to ARTH tokens first
-            const tokenAmountValue = parseFloat(autoAmount) / tokenPrice;
-            
-            // Exchange Rate: 0.0001 ETH/BNB per 1 ARTH
-            const pricePerToken = 0.0001; 
-            const totalValue = (tokenAmountValue * pricePerToken).toFixed(18);
-            const totalValueWei = ethers.parseEther(totalValue);
-
-            console.log("Initiating Web3 Purchase:", { amount: autoAmount, value: totalValue });
-
-            // Execute the contract call
-            let tx;
-            try {
-                tx = await contract.buyTokens({
-                    value: totalValueWei
-                });
-            } catch (estError) {
-                console.warn("Gas estimation failed, bypassing with manual limit...", estError);
-                // Fallback: Manually set gas limit if estimation fails (common if contract reverts)
-                tx = await contract.buyTokens({
-                    value: totalValueWei,
-                    gasLimit: 120000
-                });
-            }
-
-            const receipt = await tx.wait();
-
-            if (receipt.status === 1) {
-                // Record in backend via our API engine
-                await API.post('/tx/auto-buy', {
-                    amount: (parseFloat(autoAmount) / tokenPrice).toFixed(0), // Record as ARTH tokens
-                    txHash: receipt.hash
-                });
-
-                setIsSuccess(true);
-                updateBalances();
-                setTimeout(() => {
-                    setIsSuccess(false);
-                    setAutoAmount('');
-                }, 3000);
-            }
-        } catch (err) {
-            console.error("Web3 Purchase Error:", err);
-
-            let errorMessage = 'Protocol Error: Node Communication Interrupted';
-
-            if (err.message?.includes('user rejected')) {
-                errorMessage = 'Transaction Cancelled by User';
-            } else if (err.code === 'INSUFFICIENT_FUNDS') {
-                errorMessage = 'Insufficient ETH for transaction + gas';
-            } else if (err.code === 'CALL_EXCEPTION') {
-                errorMessage = 'Contract Revert: Ensure the protocol has ARTH liquidity and you are on the correct network.';
-            } else if (err.message) {
-                errorMessage = err.message;
-            }
-
-            setError(errorMessage);
-        }
-        setIsLoading(false);
-    };
 
     const paymentMethods = [
         { id: 'usdt', name: 'USDT (BEP20)', icon: <TrendingUp size={18} />, color: '#26A17B', address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F' },
@@ -123,6 +43,18 @@ const BuyToken = () => {
     const selectedMethod = paymentMethods.find(m => m.id === paymentMethod);
 
     useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const res = await API.get('/tx/stats');
+                if (res.data.success) {
+                    setMarketStats(res.data.data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch market stats", err);
+            }
+        };
+        fetchStats();
+
         gsap.fromTo(".buy-card",
             { y: 20, opacity: 0 },
             { y: 0, opacity: 1, stagger: 0.1, duration: 0.8, ease: "power2.out" }
@@ -133,11 +65,6 @@ const BuyToken = () => {
         navigator.clipboard.writeText(text);
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 2000);
-    };
-
-    const handleProceed = () => {
-        if (!amount || parseFloat(amount) <= 0) return;
-        setStep(2);
     };
 
     const handleSubmitProof = async () => {
@@ -194,191 +121,101 @@ const BuyToken = () => {
             </AnimatePresence>
 
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-                    <h1 className="text-3xl font-bold font-heading mb-1 uppercase tracking-tight">
-                        LIQUIDITY <span className="text-gradient">GATEWAY</span>
-                    </h1>
-                    <p className="text-[10px] text-gray-500 font-mono tracking-widest uppercase bg-white/5 py-1 px-3 rounded-full border border-white/5 inline-block">
-                        Current Price: $0.0104 / ARTH
-                    </p>
-                </motion.div>
-
-                {account ? (
-                    <div className="flex items-center gap-4 bg-[#0A0319]/50 border border-white/5 rounded-2xl px-5 py-3 backdrop-blur-xl">
-                        <div className="text-right">
-                            <p className="text-[8px] text-gray-500 uppercase font-bold tracking-widest mb-1">Asset Balance</p>
-                            <p className="text-sm font-mono font-bold text-[#22d3ee]">{parseFloat(balance).toLocaleString()} ARTH</p>
+                    <div className="flex items-center gap-4 bg-[#7b3fe4]/5 border border-[#7b3fe4]/50 px-6 py-4 rounded-[1rem] shadow-2xl backdrop-blur-xl">
+                        <div className="w-12 h-12 rounded-2xl bg-[#7b3fe4]/10 flex items-center justify-center text-[#7b3fe4] shadow-inner border border-[#7b3fe4]/20">
+                            <TrendingUp size={24} />
                         </div>
-                        <div className="h-8 w-px bg-white/10"></div>
-                        <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7b3fe4] to-[#22d3ee] flex items-center justify-center text-white shadow-lg">
-                                <Wallet size={18} />
-                            </div>
-                            <div>
-                                <p className="text-[8px] text-gray-500 uppercase font-bold tracking-widest mb-0.5">Connected Node</p>
-                                <p className="text-[10px] font-mono text-white/70">{account.substring(0, 6)}...{account.substring(account.length - 4)}</p>
-                            </div>
+                        <div>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] mb-1">Live Asset Value</p>
+                            <p className="text-2xl font-bold font-mono text-white tracking-widest leading-none flex items-baseline gap-1">
+                                $0.0104 <span className="text-xs text-gray-500 font-bold uppercase">/ ARTH</span>
+                            </p>
                         </div>
                     </div>
-                ) : (
-                    <button
-                        onClick={connectWallet}
-                        disabled={isConnecting}
-                        className="bg-white text-black px-8 py-3 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all flex items-center gap-2 group"
-                    >
-                        <Wallet size={16} />
-                        {isConnecting ? 'Initializing...' : 'Link Wallet'}
-                    </button>
-                )}
+                </motion.div>
             </div>
 
             <div className="grid lg:grid-cols-3 gap-10 items-start">
                 {/* Main Purchase Card */}
                 <div className="lg:col-span-2 space-y-8">
-                    <AnimatePresence mode="wait">
-                        {step === 1 ? (
-                            <motion.div
-                                key="step1"
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                                className="buy-card glass-panel p-10 rounded-[2.5rem] border border-white/5 bg-[#0A0319]/60 relative overflow-hidden"
-                            >
-                                <div className="absolute top-0 right-0 w-64 h-64 bg-[#22d3ee] rounded-full mix-blend-screen filter blur-[100px] opacity-[0.05] pointer-events-none"></div>
-
-                                <div className="relative z-10 space-y-10">
-                                    <div className="flex justify-between items-center mb-8">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-[#22d3ee]/10 border border-[#22d3ee]/20 flex items-center justify-center text-[#22d3ee] glow-blue">
-                                                <Wallet size={24} />
-                                            </div>
-                                            <div>
-                                                <h2 className="text-xl font-bold font-heading uppercase tracking-tighter text-white">Purchase ARTH Tokens</h2>
-                                                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Secure Institutional Layer</p>
+                    <div className="glass-panel p-8 lg:p-8 rounded-[1rem] border border-white/50! bg-[#0A0319]/50 space-y-12 relative overflow-hidden group">
+                        <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#7b3fe4]/10 blur-[100px] pointer-events-none group-hover:bg-[#7b3fe4]/15 transition-all"></div>
+                        
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-[#7b3fe4]/10 border border-[#7b3fe4]/20 flex items-center justify-center text-[#7b3fe4]">
+                                    <Wallet size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-bold font-heading uppercase text-white tracking-tight">Purchase <span className="text-gradient">ARTH TOKENS</span></h3>
+                                    <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Secure Institutional Layer</p>
+                                </div>
+                            </div>
+                        </div>
+                        <AnimatePresence mode="wait">
+                            {step === 1 ? (
+                            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
+                                <div className="space-y-8">
+                                    {/* Amount Input */}
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest px-1">Amount in USD</label>
+                                        <div className="relative group">
+                                            <input 
+                                                type="number"
+                                                value={amount}
+                                                onChange={(e) => setAmount(e.target.value)}
+                                                placeholder="0.00"
+                                                className="w-full bg-[#050814]/50 border border-white/50 rounded-3xl py-6 px-6 text-5xl font-mono text-white outline-none focus:border-[#22d3ee]/30 transition-all font-bold placeholder:text-gray-900 shadow-inner"
+                                            />
+                                            <div className="absolute right-8 bottom-8 flex items-center gap-2 text-[#22d3ee] font-bold text-sm bg-[#22d3ee]/10 px-3 py-1 rounded-lg border border-[#22d3ee]/20">
+                                                USD
                                             </div>
                                         </div>
-
-                                        <div className="flex items-center p-1 bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-                                            <button
-                                                onClick={() => setBuyMode('manual')}
-                                                className={`px-4 py-2 text-[10px] uppercase tracking-widest font-bold transition-all ${buyMode === 'manual' ? 'bg-[#22d3ee] text-black shadow-lg rounded-lg' : 'text-gray-500 hover:text-white'}`}
-                                            >Manual</button>
-                                            <button
-                                                onClick={() => setBuyMode('automatic')}
-                                                className={`px-4 py-2 text-[10px] uppercase tracking-widest font-bold transition-all ${buyMode === 'automatic' ? 'bg-[#7b3fe4] text-white shadow-lg rounded-lg' : 'text-gray-500 hover:text-white'}`}
-                                            >Automatic</button>
+                                        <div className="bg-white/5 border border-white/50 rounded-3xl p-6 flex justify-between items-center group hover:bg-white/[0.08] transition-all">
+                                            <div>
+                                                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Estimated Arth Receipt</p>
+                                                <h3 className="text-4xl font-bold font-mono text-white">
+                                                    {amount ? (parseFloat(amount) / tokenPrice).toFixed(0).toLocaleString() : '0'}
+                                                    <span className="text-sm text-gray-600 font-light ml-3">ARTH</span>
+                                                </h3>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    {buyMode === 'automatic' ? (
-                                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                                            <div className="space-y-6">
-                                                <div className="relative">
-                                                    <label className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold mb-3 block">Amount in USD</label>
-                                                    <input
-                                                        type="number"
-                                                        placeholder="0.00"
-                                                        value={autoAmount}
-                                                        onChange={(e) => setAutoAmount(e.target.value)}
-                                                        onWheel={(e) => e.target.blur()}
-                                                        className="w-full bg-[#050814]/50 border border-white/5 rounded-3xl py-10 px-8 text-5xl font-mono text-white outline-none focus:border-[#7b3fe4]/30 transition-all font-bold placeholder:text-gray-900"
-                                                    />
-                                                    <div className="absolute right-8 bottom-8 flex items-center gap-2 text-[#7b3fe4] font-bold text-sm bg-[#7b3fe4]/10 px-3 py-1 rounded-lg border border-[#7b3fe4]/20">
-                                                        USD
+                                    {/* Method Selection */}
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold block">Settlement Method</label>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            {['USDT', 'Bitcoin', 'Ethereum', 'UPI'].map((method) => (
+                                                <button 
+                                                    key={method}
+                                                    onClick={() => setPaymentMethod(method.toLowerCase())}
+                                                    className={`p-6 rounded-2xl border transition-all flex flex-col items-center gap-3 group relative overflow-hidden ${paymentMethod === method.toLowerCase() ? 'bg-[#7b3fe4]/10 border-[#7b3fe4]/40 text-white' : 'bg-white/5 border-white/20 text-gray-500 hover:border-white/50'}`}
+                                                >
+                                                    {paymentMethod === method.toLowerCase() && <motion.div layoutId="methodBg" className="absolute inset-0 bg-[#7b3fe4]/5 pointer-events-none" />}
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${paymentMethod === method.toLowerCase() ? 'bg-[#7b3fe4] text-white shadow-lg shadow-[#7b3fe4]/20' : 'bg-white/5 text-gray-500 group-hover:scale-110'}`}>
+                                                        {method === 'USDT' && <TrendingUp size={20} />}
+                                                        {method === 'Bitcoin' && <Zap size={20} className="text-orange-500" />}
+                                                        {method === 'Ethereum' && <Zap size={20} className="text-indigo-400" />}
+                                                        {method === 'UPI' && <CreditCard size={20} />}
                                                     </div>
-                                                </div>
-
-                                                <div className="bg-white/5 border border-white/5 rounded-3xl p-8 flex justify-between items-center group hover:bg-white/[0.08] transition-all">
-                                                    <div>
-                                                        <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Estimated Receipt</p>
-                                                        <h3 className="text-4xl font-bold font-mono text-white">
-                                                            {autoAmount ? (parseFloat(autoAmount) / tokenPrice).toFixed(0).toLocaleString() : '0'}
-                                                            <span className="text-sm text-gray-600 font-light ml-3">ARTH</span>
-                                                        </h3>
-                                                    </div>
-                                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#7b3fe4] to-[#22d3ee] p-[1px]">
-                                                        <div className="w-full h-full bg-[#0A0319] rounded-2xl flex items-center justify-center text-white font-bold text-xs uppercase tracking-tighter">PROTO</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-[#7b3fe4]/5 border border-[#7b3fe4]/10 rounded-[2rem] p-8 space-y-4">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Protocol Engine</span>
-                                                    <span className="text-[10px] text-[#22d3ee] font-bold uppercase tracking-widest bg-[#22d3ee]/10 px-3 py-1 rounded-lg">Web3 Direct</span>
-                                                </div>
-                                                <p className="text-xs text-gray-400 leading-relaxed font-light">By clicking "Initiate Web3 Purchase", you will execute a smart contract transaction. ARTH tokens will be minted directly to your connected wallet address.</p>
-                                            </div>
-
-                                            <button
-                                                onClick={handleAutoBuy}
-                                                disabled={isLoading || !autoAmount || parseFloat(autoAmount) <= 0}
-                                                className="w-full py-6 rounded-3xl bg-gradient-to-r from-[#7b3fe4] to-[#22d3ee] text-white font-bold uppercase tracking-widest text-[10px] shadow-[0_0_30px_rgba(123,63,228,0.4)] hover:shadow-[0_0_50px_rgba(34,211,238,0.5)] transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-20 flex items-center justify-center gap-3 group"
-                                            >
-                                                {isLoading ? <RefreshCw size={18} className="animate-spin" /> : <><ShieldCheck size={20} /> <span>Initiate Web3 Purchase</span></>}
-                                            </button>
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest">{method}</span>
+                                                </button>
+                                            ))}
                                         </div>
-                                    ) : (
-                                        <div className="space-y-10 animate-in fade-in slide-in-from-left-4 duration-500">
-                                            <div className="space-y-6">
-                                                <div className="relative">
-                                                    <label className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold mb-3 block">Amount in USD</label>
-                                                    <input
-                                                        type="number"
-                                                        placeholder="0.00"
-                                                        value={amount}
-                                                        onChange={(e) => setAmount(e.target.value)}
-                                                        onWheel={(e) => e.target.blur()}
-                                                        className="w-full bg-[#050814]/50 border border-white/5 rounded-3xl py-10 px-8 text-5xl font-mono text-white outline-none focus:border-[#22d3ee]/30 transition-all font-bold placeholder:text-gray-800"
-                                                    />
-                                                    <div className="absolute right-8 bottom-8 flex items-center gap-2 text-[#22d3ee] font-bold text-sm bg-[#22d3ee]/10 px-3 py-1 rounded-lg border border-[#22d3ee]/20">
-                                                        USD
-                                                    </div>
-                                                </div>
-                                                <div className="bg-white/5 border border-white/5 rounded-3xl p-8 flex justify-between items-center group hover:bg-white/[0.08] transition-all">
-                                                    <div>
-                                                        <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Estimated Receipt</p>
-                                                        <h3 className="text-4xl font-bold font-mono text-white">
-                                                            {amount ? (parseFloat(amount) / tokenPrice).toFixed(0).toLocaleString() : '0'}
-                                                            <span className="text-sm text-gray-600 font-light ml-3">ARTH</span>
-                                                        </h3>
-                                                    </div>
-                                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#7b3fe4] to-[#22d3ee] p-[1px]">
-                                                        <div className="w-full h-full bg-[#0A0319] rounded-2xl flex items-center justify-center text-white font-bold text-xs uppercase tracking-tighter">PRO</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-4">
-                                                <label className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold block">Settlement Method</label>
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                    {paymentMethods.map((method) => (
-                                                        <button
-                                                            key={method.id}
-                                                            onClick={() => setPaymentMethod(method.id)}
-                                                            className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 group ${paymentMethod === method.id ? 'bg-white/10 border-white/20 shadow-lg' : 'bg-white/[0.02] border-white/5 opacity-50 hover:opacity-100'}`}
-                                                        >
-                                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style={{ backgroundColor: paymentMethod === method.id ? method.color : 'transparent', color: paymentMethod === method.id ? '#fff' : method.color }}>
-                                                                {method.icon}
-                                                            </div>
-                                                            <span className="text-[10px] font-bold uppercase tracking-widest text-white">{method.name.split(' ')[0]}</span>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            <button
-                                                onClick={handleProceed}
-                                                disabled={!amount || parseFloat(amount) <= 0}
-                                                className="w-full py-6 rounded-3xl bg-gradient-to-r from-[#22d3ee] to-[#7b3fe4] text-white font-bold uppercase tracking-widest text-xs shadow-[0_0_30px_rgba(34,211,238,0.3)] hover:shadow-[0_0_60px_rgba(123,63,228,0.5)] transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-30 disabled:hover:scale-100 flex items-center justify-center gap-3 group"
-                                            >
-                                                <span>Proceed to Settlement</span>
-                                                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                                            </button>
-                                        </div>
-                                    )}
+                                    </div>
                                 </div>
+
+                                <button 
+                                    onClick={() => setStep(2)}
+                                    disabled={!amount || parseFloat(amount) <= 0}
+                                    className="w-full py-6 rounded-3xl bg-white text-black font-bold uppercase tracking-[0.4em] text-xs shadow-[0_0_50px_rgba(255,255,255,0.1)] hover:shadow-[0_0_70px_rgba(255,255,255,0.2)] hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-3 group"
+                                >
+                                    Confirm
+                                    <ArrowRight size={18} className="translate-x-0 group-hover:translate-x-2 transition-transform" />
+                                </button>
                             </motion.div>
                         ) : (
                             <motion.div
@@ -506,51 +343,34 @@ const BuyToken = () => {
                         )}
                     </AnimatePresence>
                 </div>
+            </div>
 
-                {/* Sidebar - Support/Stats */}
-                <div className="space-y-8">
-                    <div className="buy-card glass-panel p-8 rounded-[2.5rem] border border-white/5 bg-[#0A0319]/80 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#22d3ee] rounded-full mix-blend-screen filter blur-[60px] opacity-[0.1]"></div>
+            {/* Sidebar - Support/Stats */}
+            <div className="space-y-8">
 
-                        <div className="relative z-10 flex flex-col gap-6">
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#22d3ee]">
-                                    <ShieldCheck size={20} />
-                                </div>
-                                <h3 className="text-sm font-bold uppercase tracking-tighter">Secured Node</h3>
-                            </div>
 
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                                    <span>System Status</span>
-                                    <span className="text-[#22d3ee] flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#22d3ee] animate-pulse"></span> Optimal</span>
-                                </div>
-                                <div className="flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                                    <span>Oracle Delay</span>
-                                    <span className="text-white">~ 2-5 min</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="buy-card glass-panel p-8 rounded-[2.5rem] border border-white/5 bg-gradient-to-br from-[#12052b] to-[#0A0319] relative overflow-hidden group">
+                    <div className="buy-card glass-panel p-6 rounded-[1rem] border border-white/50! bg-gradient-to-br from-[#12052b] to-[#0A0319] relative overflow-hidden group">
                         <div className="relative z-10">
                             <h3 className="text-sm font-bold uppercase tracking-widest mb-6">Market Intel</h3>
                             <div className="space-y-6">
                                 <div className="flex items-center gap-4">
                                     <div className="flex-grow">
                                         <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Buy Volume (24h)</p>
-                                        <p className="text-xl font-bold font-mono text-white">$4.28M</p>
+                                        <p className="text-xl font-bold font-mono text-white">
+                                            ${(marketStats.buyVolumeUSD / 1000000).toFixed(2)}M
+                                        </p>
                                     </div>
                                     <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-green-500">
-                                        <ArrowRight size={20} className="-rotate-45" />
+                                        <TrendingUp size={20} className="scale-x-[-1] rotate-[135deg]" />
                                     </div>
                                 </div>
                                 <div className="h-px bg-white/5"></div>
                                 <div className="flex items-center gap-4">
                                     <div className="flex-grow">
                                         <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Total Minted</p>
-                                        <p className="text-xl font-bold font-mono text-white">82.5M <span className="text-xs text-gray-700 tracking-tighter">ARTH</span></p>
+                                        <p className="text-xl font-bold font-mono text-white">
+                                            {(marketStats.totalMinted / 1000000).toFixed(1)}M <span className="text-xs text-gray-700 tracking-tighter">ARTH</span>
+                                        </p>
                                     </div>
                                 </div>
                             </div>

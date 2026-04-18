@@ -19,7 +19,7 @@ import {
 import API from '../api/axios';
 
 const Staking = () => {
-    const { balances, updateBalances } = useAuth();
+    const { user, balances, updateBalances } = useAuth();
     const [stakeAmount, setStakeAmount] = useState('');
     const [isAutoCompound, setIsAutoCompound] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +28,10 @@ const Staking = () => {
     const [isSOSModalOpen, setIsSOSModalOpen] = useState(false);
     // Monthly ROI is 6%
     const monthlyROI = 6;
-    const dailyROI = (monthlyROI / 30).toFixed(4);
+    const dailyROI = 0.2;
+    const dailyYield = useMemo(() => {
+        return (balances.stakeBalance * (dailyROI / 100));
+    }, [balances.stakeBalance]);
 
     useEffect(() => {
         gsap.fromTo(".stake-card", 
@@ -110,13 +113,13 @@ const Staking = () => {
 
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-                    <h1 className="text-3xl font-bold font-heading mb-1 uppercase tracking-tight">
-                        STAKING <span className="text-gradient">PROTOCOL</span>
-                    </h1>
-                    <p className="text-[10px] text-gray-500 font-mono tracking-widest uppercase bg-white/5 py-1 px-3 rounded-full border border-white/5 inline-block">
-                        Active Yield: 6% Monthly
-                    </p>
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col gap-2">
+                    <div className="flex items-center gap-3">
+                        <div className="px-5 py-2 rounded-2xl bg-[#22C55E]/10 border border-[#22C55E]/20 text-[#22C55E] text-xs font-bold uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(34,197,94,0.1)] flex items-center gap-2">
+                             <div className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse"></div>
+                             Active Yield: 6% Monthly
+                        </div>
+                    </div>
                 </motion.div>
 
                 <div className="flex gap-3">
@@ -129,7 +132,7 @@ const Staking = () => {
             <div className="grid lg:grid-cols-3 gap-8 items-start">
                 {/* Staking Form */}
                 <div className="lg:col-span-2 space-y-8">
-                    <div className="stake-card glass-panel p-10 rounded-[2.5rem] border border-white/5 bg-[#0A0319]/60 relative overflow-hidden group">
+                    <div className="stake-card glass-panel p-6 rounded-[1rem] border border-white/50! bg-[#0A0319]/60 relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-[#7b3fe4] rounded-full mix-blend-screen filter blur-[100px] opacity-[0.05] pointer-events-none"></div>
                         
                         <div className="relative z-10">
@@ -156,7 +159,7 @@ const Staking = () => {
                                         placeholder="0.00" 
                                         value={stakeAmount}
                                         onChange={(e) => setStakeAmount(e.target.value)}
-                                        className="w-full bg-[#050814]/50 border border-white/5 rounded-3xl py-12 px-10 text-6xl font-mono text-white outline-none focus:border-[#7b3fe4]/30 transition-all font-bold placeholder:text-gray-800"
+                                        className="w-full bg-[#050814]/50 border border-white/50! rounded-3xl py-6 px-6 text-5xl font-mono text-white outline-none focus:border-[#7b3fe4]/30 transition-all font-bold placeholder:text-gray-800"
                                     />
                                     <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-4">
                                         <button 
@@ -172,34 +175,19 @@ const Staking = () => {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="bg-white/5 rounded-3xl p-6 border border-white/5 flex flex-col justify-between group/comp hover:bg-white/[0.08] transition-all">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Auto Compound</span>
-                                                <span className="text-xs text-white font-bold">Maximize Yield Efficiency</span>
-                                            </div>
-                                            <button 
-                                                onClick={() => setIsAutoCompound(!isAutoCompound)}
-                                                className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${isAutoCompound ? 'bg-[#22C55E]' : 'bg-gray-700'}`}
-                                            >
-                                                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${isAutoCompound ? 'left-7' : 'left-1'}`}></div>
-                                            </button>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-[10px] text-[#22C55E] font-bold uppercase tracking-widest">
-                                            <Zap size={14} /> Efficiency +18.4%
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white/5 rounded-3xl p-6 border border-white/5 flex flex-col justify-between">
+                                <div className="grid grid-cols-1 gap-6">
+                                    <div className="bg-white/5 rounded-2xl p-5 border border-[#a855f7]/50 flex items-center justify-between group/roi hover:bg-white/[0.08] transition-all">
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Monthly ROI</span>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-3xl font-bold font-mono text-[#a855f7]">6.00%</span>
-                                                <div className="bg-[#a855f7]/10 px-2 py-1 rounded-lg border border-[#a855f7]/20 text-[8px] font-bold text-[#a855f7] uppercase tracking-widest">Fixed</div>
+                                            <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-2">Monthly ROI Protocol</span>
+                                            <div className="flex items-center gap-4">
+                                                <span className="text-4xl font-bold font-mono text-[#a855f7] tracking-tighter">6.00%</span>
+                                                <div className="bg-[#a855f7]/10 px-3 py-1.5 rounded-xl border border-[#a855f7]/20 text-[10px] font-bold text-[#a855f7] uppercase tracking-widest shadow-inner">Guaranteed Fixed</div>
                                             </div>
                                         </div>
-                                        <p className="text-[10px] text-gray-700 font-mono mt-2 uppercase tracking-tight">Approx {dailyROI}% Daily Profit</p>
+                                        <div className="text-right">
+                                            <p className="text-[12px] text-gray-400 font-mono uppercase tracking-widest">Expected Yield</p>
+                                            <p className="text-md text-gray-400 font-bold mt-1">Approx {dailyROI}% Daily</p>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -218,7 +206,7 @@ const Staking = () => {
 
                 {/* Sidebar Stats */}
                 <div className="space-y-6">
-                    <div className="stake-card glass-panel p-8 rounded-[2.5rem] border border-[#a855f7]/20 bg-[#0A0319]/80 backdrop-blur-xl relative overflow-hidden group">
+                    <div className="stake-card glass-panel p-6 rounded-[1rem] border border-[#a855f7]/50! bg-[#0A0319]/80 backdrop-blur-xl relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-[#a855f7] rounded-full mix-blend-screen filter blur-[60px] opacity-[0.1]"></div>
                         
                         <div className="relative z-10">
@@ -227,43 +215,58 @@ const Staking = () => {
                                     <TrendingUp size={20} />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold font-heading uppercase tracking-tighter">Yield Status</h3>
-                                    <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold">Real-time Stats</p>
+                                    <h3 className="text-lg font-bold font-heading uppercase tracking-tighter">Yield Analytics</h3>
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-[0.2em] font-bold">Auto-Compounding Live</p>
                                 </div>
                             </div>
 
                             <div className="space-y-6">
-                                <div>
+                                <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
                                     <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 font-bold">Active Total Staked</p>
-                                    <p className="text-3xl font-bold font-mono text-white">{balances.stakeBalance.toLocaleString()} <span className="text-sm text-gray-700">ARTH</span></p>
+                                    <p className="text-3xl font-bold font-mono text-white">{balances.stakeBalance.toLocaleString()} <span className="text-xs text-gray-700">ARTH</span></p>
                                 </div>
                                 
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center px-1">
+                                        <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Daily Protocol Yield</p>
+                                        <p className="text-sm font-bold font-mono text-[#22C55E]">{(balances.stakeBalance * 0.002).toFixed(2)} ARTH</p>
+                                    </div>
+                                    <div className="flex justify-between items-center px-1">
+                                        <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Monthly Strategy</p>
+                                        <p className="text-sm font-bold font-mono text-[#a855f7]">6.00%</p>
+                                    </div>
+                                </div>
+
+                                <div className="p-4 bg-[#7b3fe4]/10 rounded-2xl border border-[#7b3fe4]/20 relative overflow-hidden">
+                                     <div className="absolute top-0 right-0 w-24 h-24 bg-[#7b3fe4]/5 blur-xl pointer-events-none"></div>
+                                     <p className="text-[9px] text-[#7b3fe4] uppercase tracking-[0.3em] mb-2 font-black">Total Accumulated Yield</p>
+                                     <div className="flex items-baseline gap-2">
+                                         <p className="text-2xl font-bold font-mono text-white">{(user?.totalYield || 0).toLocaleString()}</p>
+                                         <span className="text-[10px] text-gray-600 font-bold">ARTH EARNED</span>
+                                     </div>
+                                </div>
+
                                 <div className="h-px bg-white/5"></div>
                                 
+                                <div className="p-4 bg-[#12052b] rounded-2xl border border-[#a855f7]/20 relative overflow-hidden">
+                                     <div className="absolute top-0 right-0 w-24 h-24 bg-[#a855f7]/5 blur-xl pointer-events-none"></div>
+                                     <p className="text-[9px] text-[#a855f7] uppercase tracking-[0.3em] mb-2 font-black">Daily Yield Direct</p>
+                                     <div className="flex items-baseline gap-2">
+                                         <p className="text-2xl font-bold font-mono text-white">{dailyYield.toFixed(4)}</p>
+                                         <span className="text-[10px] text-gray-600 font-bold">ARTH / DAY</span>
+                                     </div>
+                                </div>
+
                                 {error && (
                                     <div className="flex items-center gap-2 text-red-500 bg-red-500/5 p-3 rounded-xl border border-red-500/10 text-[10px] uppercase font-bold tracking-widest">
                                         <AlertCircle size={14} /> {error}
                                     </div>
                                 )}
-
-                                <div>
-                                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 font-bold">Unclaimed Earnings</p>
-                                    <div className="flex justify-between items-end">
-                                        <p className="text-3xl font-bold font-mono text-[#22C55E]">{balances.incomeBalance.toLocaleString()} <span className="text-sm text-gray-700">ARTH</span></p>
-                                        <button 
-                                            onClick={handleClaim}
-                                            disabled={balances.incomeBalance <= 0 || isLoading}
-                                            className="text-[10px] font-bold text-white uppercase tracking-widest px-4 py-2 bg-white/10 rounded-xl border border-white/10 hover:bg-white/20 transition-all disabled:opacity-20"
-                                        >
-                                            {isLoading ? '...' : 'Claim'}
-                                        </button>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="stake-card glass-panel p-8 rounded-[2.5rem] border border-red-500/10 bg-red-500/[0.02] hover:bg-red-500/[0.04] transition-all relative overflow-hidden group">
+                    <div className="stake-card glass-panel p-6 rounded-[1rem] border border-red-500/50! bg-red-500/[0.02] hover:bg-red-500/[0.08] transition-all relative overflow-hidden group">
                         <div className="relative z-10">
                             <div className="flex items-center gap-4 mb-4">
                                 <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
@@ -271,10 +274,7 @@ const Staking = () => {
                                 </div>
                                 <h3 className="text-lg font-bold font-heading uppercase tracking-tighter text-red-500/80">SOS Withdraw</h3>
                             </div>
-                            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-6 leading-relaxed bg-red-500/5 p-3 rounded-xl border border-red-500/10">
-                                Emergency exit allows <span className="text-red-400 font-bold">Instant Liquidation</span>. 
-                                A <span className="text-red-400 font-bold">20% Penalty</span> will be deducted from your total stake.
-                            </p>
+
                             <button 
                                 onClick={() => setIsSOSModalOpen(true)}
                                 disabled={balances.stakeBalance <= 0}

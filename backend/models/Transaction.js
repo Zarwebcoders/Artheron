@@ -8,7 +8,7 @@ const TransactionSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['buy', 'stake', 'claim', 'withdraw', 'sos'],
+        enum: ['buy', 'stake', 'claim', 'withdraw', 'sos', 'yield'],
         required: true
     },
     amount: {
@@ -28,6 +28,13 @@ const TransactionSchema = new mongoose.Schema({
     proofUrl: String,
     txHash: String,
     method: String,
+    fee: {
+        type: Number,
+        default: 0
+    },
+    settlementAmount: {
+        type: Number
+    },
     timestamp: {
         type: Date,
         default: Date.now

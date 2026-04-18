@@ -59,62 +59,6 @@ exports.buyTokens = async (req, res) => {
     }
 };
 
-// @desc    Record Automatic Token Purchase (Web3)
-// @route   POST /api/tx/auto-buy
-// @access  Private
-exports.recordAutoBuy = async (req, res) => {
-    const { amount, txHash, walletAddress } = req.body;
-
-    if (!amount || !txHash) {
-        return res.status(400).json({ success: false, message: 'Invalid transaction data' });
-    }
-
-    try {
-        const transaction = await Transaction.create({
-            user: req.user.id,
-            type: 'buy',
-            amount,
-            txHash,
-            method: 'MetaMask (Auto)',
-            status: 'completed' // Web3 transactions are verified on-chain
-        });
-
-        // Also update user balance immediately for auto-buys
-        const user = await User.findById(req.user.id);
-        user.balances.tokenBalance += parseFloat(amount);
-        await user.save();
-
-        // Notify Admin
-        try {
-            await sendEmail({
-                email: process.env.ADMIN_EMAIL,
-                subject: '⚡ Artheron Alert: Web3 Purchase Success',
-                html: `
-                    <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #7b3fe4; border-radius: 10px; background: #fafafa;">
-                        <h2 style="color: #7b3fe4;">Automatic Web3 Purchase</h2>
-                        <p><strong>Operator:</strong> ${user.email}</p>
-                        <p><strong>Amount:</strong> ${amount} ARTH</p>
-                        <p><strong>Status:</strong> Automatically Verified On-Chain</p>
-                        <p><strong>Tx Hash:</strong> <span style="font-family: monospace; font-size: 11px;">${txHash}</span></p>
-                        <hr>
-                        <p style="font-size: 11px; color: #777;">Artheron Protocol Automated Monitoring System</p>
-                    </div>
-                `
-            });
-        } catch (mailErr) {
-            console.error("Admin Notify Error (AutoBuy):", mailErr);
-        }
-
-        res.status(201).json({
-            success: true,
-            message: 'Transaction recorded and ARTH credited.',
-            data: transaction
-        });
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
-};
-
 // @desc    Withdraw tokens
 // @route   POST /api/tx/withdraw
 // @access  Private
@@ -127,27 +71,38 @@ exports.withdrawTokens = async (req, res) => {
 
     try {
         const user = await User.findById(req.user.id);
-
-        if (currency === 'ARTH') {
-            if (user.balances.tokenBalance < amount) {
-                return res.status(400).json({ success: false, message: 'Insufficient ARTH balance' });
-            }
-            user.balances.tokenBalance -= amount;
-        } else if (currency === 'USDT') {
-            if (user.balances.incomeBalance < amount) {
-                return res.status(400).json({ success: false, message: 'Insufficient USDT/Income balance' });
-            }
-            user.balances.incomeBalance -= amount;
+        const ARTH_PRICE = 0.010417;
+        
+        // All withdrawals deduct from ARTH balance (tokenBalance)
+        if (user.balances.tokenBalance < amount) {
+            return res.status(400).json({ success: false, message: 'Insufficient ARTH balance' });
         }
 
+        let fee = 0;
+        let settlementAmount = amount;
+
+        if (currency === 'USDT') {
+            const grossUSD = amount * ARTH_PRICE;
+            fee = 1; // 1 USDT fixed fee
+            settlementAmount = grossUSD - fee;
+
+            if (settlementAmount <= 0) {
+                return res.status(400).json({ success: false, message: 'Withdrawal amount too low to cover gas fees' });
+            }
+        }
+
+        // Deduct full ARTH amount from operator
+        user.balances.tokenBalance -= amount;
         await user.save();
 
         const transaction = await Transaction.create({
             user: user._id,
             type: 'withdraw',
-            amount,
+            amount, // Original ARTH amount
             currency,
-            txHash: walletAddress, // Temporarily store address as hash until processed
+            fee,
+            settlementAmount,
+            txHash: walletAddress, 
             status: 'pending'
         });
 
@@ -193,6 +148,64 @@ exports.getHistory = async (req, res) => {
             success: true,
             count: transactions.length,
             data: transactions
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// @desc    Get live protocol stats (public)
+// @route   GET /api/tx/stats
+// @access  Private
+exports.getPublicStats = async (req, res) => {
+    try {
+        // Total Minted = sum of all ARTH balances across all accounts
+        const totalMintedArr = await User.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    total: {
+                        $sum: {
+                            $add: [
+                                { $ifNull: ["$balances.tokenBalance", 0] },
+                                { $ifNull: ["$balances.stakeBalance", 0] },
+                                { $ifNull: ["$balances.incomeBalance", 0] }
+                            ]
+                        }
+                    }
+                }
+            }
+        ]);
+
+        // 24h Buy Volume (Completed only)
+        const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const buyVolumeArr = await Transaction.aggregate([
+            {
+                $match: {
+                    type: 'buy',
+                    status: 'completed',
+                    timestamp: { $gte: dayAgo }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    total: { $sum: "$amount" }
+                }
+            }
+        ]);
+
+        const totalMinted = totalMintedArr[0]?.total || 0;
+        const buyVolumeARTH = buyVolumeArr[0]?.total || 0;
+        const buyVolumeUSD = buyVolumeARTH * 0.010417; // price constant
+
+        res.status(200).json({
+            success: true,
+            data: {
+                totalMinted,
+                buyVolumeUSD,
+                timestamp: new Date()
+            }
         });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });

@@ -43,10 +43,13 @@ export const AuthProvider = ({ children }) => {
         checkStatus();
     }, []);
 
-    const login = async (email, password) => {
+    const login = async (accountNumber, password) => {
         try {
-            const res = await API.post('/auth/login', { email, password });
+            const res = await API.post('/auth/login', { accountNumber, password });
             if (res.data.success) {
+                if (res.data.require2FA) {
+                    return { success: true, require2FA: true, email: res.data.email };
+                }
                 const { token, user: userData } = res.data;
                 localStorage.setItem('artheron_token', token);
                 setUser(userData);
@@ -55,6 +58,70 @@ export const AuthProvider = ({ children }) => {
             }
         } catch (err) {
             return { success: false, message: err.response?.data?.message || 'Login failed' };
+        }
+    };
+
+    const verify2FA = async (accountNumber, otp) => {
+        try {
+            const res = await API.post('/auth/verify-2fa', { accountNumber, otp });
+            if (res.data.success) {
+                const { token, user: userData } = res.data;
+                localStorage.setItem('artheron_token', token);
+                setUser(userData);
+                setBalances(userData.balances);
+                return { success: true, role: userData.role };
+            }
+        } catch (err) {
+            return { success: false, message: err.response?.data?.message || 'Invalid code' };
+        }
+    };
+
+    const toggle2FA = async () => {
+        try {
+            const res = await API.put('/auth/toggle-2fa');
+            if (res.data.success) {
+                setUser(prev => ({ ...prev, is2FAEnabled: res.data.is2FAEnabled }));
+                return { success: true, is2FAEnabled: res.data.is2FAEnabled };
+            }
+        } catch (err) {
+            return { success: false, message: err.response?.data?.message || 'Update failed' };
+        }
+    };
+
+    const forgotPassword = async (email) => {
+        try {
+            const res = await API.post('/auth/forgot-password', { email });
+            return { success: res.data.success, message: res.data.message };
+        } catch (err) {
+            return { success: false, message: err.response?.data?.message || 'Request failed' };
+        }
+    };
+
+    const resetPassword = async (token, password) => {
+        try {
+            const res = await API.put(`/auth/reset-password/${token}`, { password });
+            if (res.data.success) {
+                const { token: jwtToken, user: userData } = res.data;
+                localStorage.setItem('artheron_token', jwtToken);
+                setUser(userData);
+                setBalances(userData.balances);
+                return { success: true };
+            }
+        } catch (err) {
+            return { success: false, message: err.response?.data?.message || 'Reset failed' };
+        }
+    };
+
+    const updatePassword = async (currentPassword, newPassword, confirmPassword) => {
+        try {
+            const res = await API.put('/auth/update-password', { 
+                currentPassword, 
+                newPassword, 
+                confirmPassword 
+            });
+            return { success: res.data.success, message: res.data.message };
+        } catch (err) {
+            return { success: false, message: err.response?.data?.message || 'Update failed' };
         }
     };
 
@@ -127,6 +194,11 @@ export const AuthProvider = ({ children }) => {
             register,
             verifyOTP,
             resendOTP,
+            verify2FA,
+            toggle2FA,
+            forgotPassword,
+            resetPassword,
+            updatePassword,
             logout, 
             isAdmin, 
             loading,

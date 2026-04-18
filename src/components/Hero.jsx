@@ -10,7 +10,7 @@ import gsap from 'gsap';
 const ParticleField = (props) => {
     const pointsRef = useRef();
     const groupRef = useRef();
-    const sphere = random.inSphere(new Float32Array(5000), { radius: 1.5 });
+    const sphere = React.useMemo(() => random.inSphere(new Float32Array(5001), { radius: 1.5 }), []);
 
     useEffect(() => {
         const handleMouseMove = (event) => {

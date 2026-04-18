@@ -168,7 +168,21 @@ const AdminTransactions = () => {
                                             </div>
                                         </td>
                                         <td className="px-10 py-6">
-                                            <p className="text-sm font-mono font-bold text-white tracking-widest">{tx.amount.toLocaleString()} <span className="text-[10px] text-gray-600">{tx.currency || 'ARTH'}</span></p>
+                                            <div className="flex flex-col gap-1">
+                                                <p className="text-sm font-mono font-bold text-white tracking-widest">
+                                                    {tx.amount.toLocaleString()} <span className="text-[10px] text-gray-600">ARTH</span>
+                                                </p>
+                                                {tx.fee > 0 && (
+                                                    <p className="text-[9px] text-red-500/80 font-mono uppercase tracking-tighter">
+                                                        Fee: -{tx.fee.toFixed(2)} {tx.currency}
+                                                    </p>
+                                                )}
+                                                {tx.settlementAmount !== undefined && tx.settlementAmount !== tx.amount && (
+                                                    <p className="text-[10px] text-cyan-400 font-mono font-bold border-t border-white/5 pt-1 mt-1">
+                                                        Settlement: {tx.settlementAmount.toLocaleString(undefined, { minimumFractionDigits: tx.currency === 'USDT' ? 2 : 0, maximumFractionDigits: 4 })} {tx.currency}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-10 py-6">
                                             {tx.type === 'buy' && tx.proofUrl ? (

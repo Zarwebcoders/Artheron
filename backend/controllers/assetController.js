@@ -184,17 +184,32 @@ exports.distributeROI = async (req, res) => {
         
         let count = 0;
         for (let user of users) {
-            const dailyYield = user.balances.stakeBalance * 0.002; // 0.2% daily
-            user.balances.incomeBalance += dailyYield;
+            const dailyYield = user.balances.stakeBalance * 0.002; // 0.2% daily (6% monthly)
+            
+            // Add directly to main balance (Option A)
+            user.balances.tokenBalance += dailyYield;
             await user.save();
+
+            // Log yield credit
+            await Transaction.create({
+                user: user._id,
+                type: 'yield',
+                amount: dailyYield,
+                status: 'completed'
+            });
+
             count++;
         }
         
-        res.status(200).json({
-            success: true,
-            message: `ROI Distributed to ${count} operators successfully.`
-        });
+        if (res) {
+            res.status(200).json({
+                success: true,
+                message: `ROI Distributed to ${count} operators directly to main balance.`
+            });
+        }
+        return count;
     } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
+        if (res) res.status(500).json({ success: false, message: err.message });
+        console.error("ROI Distribution Error:", err);
     }
 };

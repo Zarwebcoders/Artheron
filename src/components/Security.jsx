@@ -101,14 +101,6 @@ const Security = () => {
                 </div>
             </div>
 
-            <style jsx>{`
-                @keyframes scan {
-                    0%, 100% { top: 0; opacity: 0; }
-                    10% { opacity: 1; }
-                    90% { opacity: 1; }
-                    50% { top: 100%; opacity: 1; }
-                }
-            `}</style>
         </section>
     );
 };
